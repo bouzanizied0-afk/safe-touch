@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار البصمة السلوكية 🛡️</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
+        .box { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        button { background: #007bff; color: white; border: none; padding: 20px 40px; font-size: 20px; border-radius: 12px; cursor: pointer; width: 100%; touch-action: none; }
+        canvas { border: 1px solid #ddd; margin-top: 20px; border-radius: 10px; background: #fff; width: 100%; height: 150px; }
+        #status { margin-top: 15px; font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h3>مختبر الهوية السلوكية</h3>
+        <p>اضغط 5 مرات ليتعلم النظام نمطك</p>
+        <button id="btn">تأكيد الهوية</button>
+        <div id="status">في انتظار اللمس...</div>
+        <canvas id="graph"></canvas>
+    </div>
+
+    <script>
+        const btn = document.getElementById('btn');
+        const status = document.getElementById('status');
+        const canvas = document.getElementById('graph');
+        const ctx = canvas.getContext('2d');
+        let profile = { avgVel: 0, count: 0 };
+        let points = [];
+        let startTime = 0;
+
+        btn.addEventListener('pointerdown', () => startTime = performance.now());
+        btn.addEventListener('pointerup', () => {
+            const vel = 1000 / (performance.now() - startTime);
+            let ok = true;
+
+            if (profile.count < 5) {
+                profile.avgVel = (profile.avgVel * profile.count + vel) / (profile.count + 1);
+                profile.count++;
+                status.innerText = `جاري التعلم... (${profile.count}/5)`;
+            } else {
+                ok = Math.abs(profile.avgVel - vel) < 3;
+                status.innerText = ok ? "تم التحقق: أنت صاحب الهاتف ✅" : "تحذير: نمط غريب! ❌";
+                status.style.color = ok ? "blue" : "red";
+            }
+
+            points.push({vel, ok});
+            if(points.length > 20) points.shift();
+            draw();
+        });
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            points.forEach((p, i) => {
+                ctx.fillStyle = p.ok ? "blue" : "red";
+                ctx.beginPath();
+                ctx.arc((i*20)+10, canvas.height - (p.vel*10), 6, 0, Math.PI*2);
+                ctx.fill();
+            });
+        }
+    </script>
+</body>
+</html>
