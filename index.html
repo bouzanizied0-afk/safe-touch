@@ -3,103 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المتاهة اللامركزية 🛡️🔗</title>
+    <title>نظام الهوية السلوكية اللامركزي 🛡️</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #eef2f3; padding: 15px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        #my-id { background: #eee; padding: 10px; border-radius: 5px; font-size: 14px; word-break: break-all; }
-        button { background: #6200ee; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-size: 18px; margin-top: 10px; touch-action: none; }
-        input { width: 100%; padding: 10px; margin-top: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        canvas { border: 1px solid #ddd; margin-top: 15px; background: #fff; width: 100%; height: 120px; border-radius: 8px; }
-        #log { margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; }
-        .danger { background: #f8d7da; color: #721c24; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; text-align: center; padding: 20px; }
+        .app-container { background: white; max-width: 450px; margin: auto; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .status-badge { padding: 10px; border-radius: 10px; margin: 15px 0; font-weight: bold; font-size: 14px; }
+        .idle { background: #e2e8f0; color: #475569; }
+        .trusted { background: #dcfce7; color: #166534; }
+        .warning { background: #fee2e2; color: #991b1b; }
+        button#authBtn { width: 100%; padding: 20px; font-size: 18px; border: none; border-radius: 15px; background: #4f46e5; color: white; cursor: pointer; touch-action: none; transition: 0.2s; }
+        button#authBtn:active { transform: scale(0.96); background: #4338ca; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
+        canvas { width: 100%; height: 150px; background: #f8fafc; border-radius: 12px; margin-top: 20px; border: 1px solid #e2e8f0; }
+        #peer-info { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 10px; border-radius: 8px; word-break: break-all; margin-bottom: 15px; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h3>🛡️ العقدة اللامركزية (Node)</h3>
-        <p>معرف جهازك (أرسله للطرف الآخر):</p>
-        <div id="my-id">جاري التحميل...</div>
-        
-        <input type="text" id="peer-id-input" placeholder="أدخل معرف الطرف الآخر هنا">
-        <button onclick="connectToPeer()" style="background: #03dac6; color: #000; font-size: 14px;">ربط الأجهزة 🔗</button>
 
-        <hr style="margin: 20px 0;">
-        
-        <button id="authBtn">تأكيد الهوية (المس هنا)</button>
-        <div id="log">في انتظار الربط أو اللمس...</div>
-        <canvas id="graph"></canvas>
-    </div>
+<div class="app-container">
+    <h2>المتاهة الزمنية 🛡️</h2>
+    <div id="peer-info">جاري توليد معرف هويتك اللامركزية...</div>
+    
+    <input type="text" id="targetId" placeholder="أدخل معرف الطرف الآخر للربط">
+    <button id="connectBtn" style="background: #10b981; font-size: 14px; padding: 10px; margin-bottom: 20px;">ربط العقد 🔗</button>
 
-    <script>
-        let peer = new Peer();
-        let conn;
-        let profile = { avgVel: 0, count: 0 };
-        let points = [];
-        let startTime = 0;
+    <div id="displayStatus" class="status-badge idle">في انتظار اللمس أو الربط...</div>
+    
+    <button id="authBtn">إثبات الهوية باللمس</button>
+    
+    <canvas id="liveGraph"></canvas>
+</div>
 
-        // 1. إعداد الـ P2P
-        peer.on('open', id => document.getElementById('my-id').innerText = id);
+<script type="module">
+    // استيراد العقل المدبر وجهاز اللاسلكي
+    import { BehavioralEngine } from './behavior.js';
+    import { P2PNetwork } from './network.js';
 
-        peer.on('connection', c => {
-            conn = c;
-            setupChat();
-            document.getElementById('log').innerText = "متصل بجهاز آخر! 🟢";
+    const engine = new BehavioralEngine();
+    let startTime = 0;
+    const points = [];
+
+    // إعداد الشبكة
+    const net = new P2PNetwork((data) => {
+        updateUI(data.includes("✅") ? "trusted" : "warning", "رسالة من الشبكة: " + data);
+    });
+
+    net.init((id) => {
+        document.getElementById('peer-info').innerText = "معرفك: " + id;
+    });
+
+    document.getElementById('connectBtn').onclick = () => {
+        const targetId = document.getElementById('targetId').value;
+        net.connect(targetId);
+        updateUI("idle", "تم إرسال طلب الربط 🔗");
+    };
+
+    // معالجة اللمس
+    const btn = document.getElementById('authBtn');
+    btn.onpointerdown = () => startTime = performance.now();
+    btn.onpointerup = () => {
+        const duration = performance.now() - startTime;
+        const result = engine.analyze(duration, 0);
+
+        let msg = "";
+        if (result.learning) {
+            msg = `جاري التدريب... (${engine.model.count}/5)`;
+            updateUI("idle", msg);
+        } else {
+            msg = result.ok ? "تم التحقق من هويتك ✅" : "تحذير: نمط غير مطابق! ❌";
+            updateUI(result.ok ? "trusted" : "warning", msg);
+            // إرسال النتيجة للطرف الآخر عبر P2P
+            net.sendValidation(msg);
+        }
+
+        renderGraph(1000/duration, result.ok);
+    };
+
+    function updateUI(status, text) {
+        const el = document.getElementById('displayStatus');
+        el.className = `status-badge ${status}`;
+        el.innerText = text;
+    }
+
+    function renderGraph(vel, ok) {
+        const canvas = document.getElementById('liveGraph');
+        const ctx = canvas.getContext('2d');
+        points.push({vel, ok});
+        if(points.length > 25) points.shift();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        points.forEach((p, i) => {
+            ctx.fillStyle = p.ok ? "#3b82f6" : "#ef4444";
+            ctx.beginPath();
+            ctx.arc((i * 12) + 10, canvas.height - (p.vel * 10), 5, 0, Math.PI * 2);
+            ctx.fill();
         });
+    }
+</script>
 
-        function connectToPeer() {
-            const id = document.getElementById('peer-id-input').value;
-            conn = peer.connect(id);
-            setupChat();
-            document.getElementById('log').innerText = "تم الربط بنجاح! 🟢";
-        }
-
-        function setupChat() {
-            conn.on('data', data => {
-                document.getElementById('log').innerText = "رسالة من الطرف الآخر: " + data;
-                document.getElementById('log').className = data.includes("✅") ? "success" : "danger";
-            });
-        }
-
-        // 2. محرك البصمة السلوكية
-        const btn = document.getElementById('authBtn');
-        btn.addEventListener('pointerdown', () => startTime = performance.now());
-        btn.addEventListener('pointerup', () => {
-            const vel = 1000 / (performance.now() - startTime);
-            let ok = true;
-
-            if (profile.count < 5) {
-                profile.avgVel = (profile.avgVel * profile.count + vel) / (profile.count + 1);
-                profile.count++;
-                document.getElementById('log').innerText = `تدريب... (${profile.count}/5)`;
-            } else {
-                ok = Math.abs(profile.avgVel - vel) < 3.5;
-                const msg = ok ? "تم التحقق من هويتي بنجاح ✅" : "تحذير: شخص غريب يحاول الدخول ❌";
-                document.getElementById('log').innerText = ok ? "أنت صاحب الجهاز ✅" : "نمط مرفوض ❌";
-                document.getElementById('log').className = ok ? "success" : "danger";
-                
-                // إرسال النتيجة للطرف الآخر P2P
-                if (conn && conn.open) conn.send(msg);
-            }
-
-            points.push({vel, ok});
-            if(points.length > 20) points.shift();
-            draw();
-        });
-
-        function draw() {
-            const canvas = document.getElementById('graph');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            points.forEach((p, i) => {
-                ctx.fillStyle = p.ok ? "blue" : "red";
-                ctx.beginPath();
-                ctx.arc((i*15)+10, canvas.height - (p.vel*8), 5, 0, Math.PI*2);
-                ctx.fill();
-            });
-        }
-    </script>
 </body>
 </html>
