@@ -3,33 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اختبار البصمة السلوكية 🛡️</title>
+    <title>المتاهة اللامركزية 🛡️🔗</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f2f5; padding: 20px; }
-        .box { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        button { background: #007bff; color: white; border: none; padding: 20px 40px; font-size: 20px; border-radius: 12px; cursor: pointer; width: 100%; touch-action: none; }
-        canvas { border: 1px solid #ddd; margin-top: 20px; border-radius: 10px; background: #fff; width: 100%; height: 150px; }
-        #status { margin-top: 15px; font-size: 18px; font-weight: bold; }
+        body { font-family: sans-serif; text-align: center; background: #eef2f3; padding: 15px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        #my-id { background: #eee; padding: 10px; border-radius: 5px; font-size: 14px; word-break: break-all; }
+        button { background: #6200ee; color: white; border: none; padding: 15px; border-radius: 10px; width: 100%; font-size: 18px; margin-top: 10px; touch-action: none; }
+        input { width: 100%; padding: 10px; margin-top: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        canvas { border: 1px solid #ddd; margin-top: 15px; background: #fff; width: 100%; height: 120px; border-radius: 8px; }
+        #log { margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .danger { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h3>مختبر الهوية السلوكية</h3>
-        <p>اضغط 5 مرات ليتعلم النظام نمطك</p>
-        <button id="btn">تأكيد الهوية</button>
-        <div id="status">في انتظار اللمس...</div>
+    <div class="card">
+        <h3>🛡️ العقدة اللامركزية (Node)</h3>
+        <p>معرف جهازك (أرسله للطرف الآخر):</p>
+        <div id="my-id">جاري التحميل...</div>
+        
+        <input type="text" id="peer-id-input" placeholder="أدخل معرف الطرف الآخر هنا">
+        <button onclick="connectToPeer()" style="background: #03dac6; color: #000; font-size: 14px;">ربط الأجهزة 🔗</button>
+
+        <hr style="margin: 20px 0;">
+        
+        <button id="authBtn">تأكيد الهوية (المس هنا)</button>
+        <div id="log">في انتظار الربط أو اللمس...</div>
         <canvas id="graph"></canvas>
     </div>
 
     <script>
-        const btn = document.getElementById('btn');
-        const status = document.getElementById('status');
-        const canvas = document.getElementById('graph');
-        const ctx = canvas.getContext('2d');
+        let peer = new Peer();
+        let conn;
         let profile = { avgVel: 0, count: 0 };
         let points = [];
         let startTime = 0;
 
+        // 1. إعداد الـ P2P
+        peer.on('open', id => document.getElementById('my-id').innerText = id);
+
+        peer.on('connection', c => {
+            conn = c;
+            setupChat();
+            document.getElementById('log').innerText = "متصل بجهاز آخر! 🟢";
+        });
+
+        function connectToPeer() {
+            const id = document.getElementById('peer-id-input').value;
+            conn = peer.connect(id);
+            setupChat();
+            document.getElementById('log').innerText = "تم الربط بنجاح! 🟢";
+        }
+
+        function setupChat() {
+            conn.on('data', data => {
+                document.getElementById('log').innerText = "رسالة من الطرف الآخر: " + data;
+                document.getElementById('log').className = data.includes("✅") ? "success" : "danger";
+            });
+        }
+
+        // 2. محرك البصمة السلوكية
+        const btn = document.getElementById('authBtn');
         btn.addEventListener('pointerdown', () => startTime = performance.now());
         btn.addEventListener('pointerup', () => {
             const vel = 1000 / (performance.now() - startTime);
@@ -38,11 +73,15 @@
             if (profile.count < 5) {
                 profile.avgVel = (profile.avgVel * profile.count + vel) / (profile.count + 1);
                 profile.count++;
-                status.innerText = `جاري التعلم... (${profile.count}/5)`;
+                document.getElementById('log').innerText = `تدريب... (${profile.count}/5)`;
             } else {
-                ok = Math.abs(profile.avgVel - vel) < 3;
-                status.innerText = ok ? "تم التحقق: أنت صاحب الهاتف ✅" : "تحذير: نمط غريب! ❌";
-                status.style.color = ok ? "blue" : "red";
+                ok = Math.abs(profile.avgVel - vel) < 3.5;
+                const msg = ok ? "تم التحقق من هويتي بنجاح ✅" : "تحذير: شخص غريب يحاول الدخول ❌";
+                document.getElementById('log').innerText = ok ? "أنت صاحب الجهاز ✅" : "نمط مرفوض ❌";
+                document.getElementById('log').className = ok ? "success" : "danger";
+                
+                // إرسال النتيجة للطرف الآخر P2P
+                if (conn && conn.open) conn.send(msg);
             }
 
             points.push({vel, ok});
@@ -51,11 +90,13 @@
         });
 
         function draw() {
+            const canvas = document.getElementById('graph');
+            const ctx = canvas.getContext('2d');
             ctx.clearRect(0,0,canvas.width,canvas.height);
             points.forEach((p, i) => {
                 ctx.fillStyle = p.ok ? "blue" : "red";
                 ctx.beginPath();
-                ctx.arc((i*20)+10, canvas.height - (p.vel*10), 6, 0, Math.PI*2);
+                ctx.arc((i*15)+10, canvas.height - (p.vel*8), 5, 0, Math.PI*2);
                 ctx.fill();
             });
         }
