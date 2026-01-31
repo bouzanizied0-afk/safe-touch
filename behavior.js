@@ -8,6 +8,7 @@ export class BehavioralEngine {
     }
 
     analyze(duration) {
+        // التحليل الآن يعتمد على "التنميط الذاتي" لكل جهاز على حدة
         if (!this.isTrained) {
             return this._performTraining(duration);
         } else {
@@ -29,17 +30,28 @@ export class BehavioralEngine {
 
     _performVerification(duration) {
         const diff = Math.abs(duration - this.mean);
-        // الهامش الديناميكي (3 أضعاف الانحراف المعياري)
-        let dynamicThreshold = Math.max(this.stdDev * 3, 40); 
+        
+        /**
+         * تحديث تقني: الهامش الديناميكي أصبح "مطاطياً" 
+         * ليناسب اختلاف استجابة الشاشات (آيفون، أندرويد، حاسوب)
+         * رفعنا المعامل إلى 3.5 لضمان عدم رفض المستخدم الحقيقي بسبب لاغ (Lag) الشبكة
+         */
+        let dynamicThreshold = Math.max(this.stdDev * 3.5, 50); 
 
         const isMatch = diff <= dynamicThreshold;
 
         if (isMatch) {
             // إعادة ضبط عداد الفشل عند النجاح
             this.failureCount = 0; 
-            // التكيف المستمر (Reinforcement Learning)
-            this.mean = (this.mean * 0.9) + (duration * 0.1);
-            this.stdDev = (this.stdDev * 0.95) + (Math.abs(duration - this.mean) * 0.05);
+            
+            /**
+             * التكيف المستمر (Reinforcement Learning)
+             * جعلنا التعلم بنسبة 20% (0.2) بدلاً من 10% لسرعة التأقلم 
+             * مع اختلاف الأجهزة عند التنقل بينها.
+             */
+            this.mean = (this.mean * 0.8) + (duration * 0.2);
+            this.stdDev = (this.stdDev * 0.9) + (Math.abs(duration - this.mean) * 0.1);
+            
             return { ok: true, learning: false };
         } else {
             // زيادة عداد الفشل عند الخطأ
