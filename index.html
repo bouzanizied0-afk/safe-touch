@@ -3,40 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام الهوية السلوكية اللامركزي 🛡️</title>
+    <title>Chat Pro - الدردشة السلوكية 🛡️</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; text-align: center; padding: 20px; }
         .app-container { background: white; max-width: 450px; margin: auto; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .status-badge { padding: 10px; border-radius: 10px; margin: 15px 0; font-weight: bold; font-size: 14px; }
+        .status-badge { padding: 10px; border-radius: 10px; margin: 15px 0; font-weight: bold; font-size: 14px; transition: 0.3s; }
         .idle { background: #e2e8f0; color: #475569; }
         .trusted { background: #dcfce7; color: #166534; }
         .warning { background: #fee2e2; color: #991b1b; }
-        button#authBtn { width: 100%; padding: 20px; font-size: 18px; border: none; border-radius: 15px; background: #4f46e5; color: white; cursor: pointer; touch-action: none; transition: 0.2s; }
-        button#authBtn:active { transform: scale(0.96); background: #4338ca; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
-        canvas { width: 100%; height: 150px; background: #f8fafc; border-radius: 12px; margin-top: 20px; border: 1px solid #e2e8f0; }
-        #peer-info { font-size: 12px; color: #64748b; background: #f1f5f9; padding: 10px; border-radius: 8px; word-break: break-all; margin-bottom: 15px; }
+        
+        /* تصميم صندوق الدردشة */
+        #chatBox { height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; margin: 15px 0; background: #fafafa; text-align: right; display: flex; flex-direction: column; }
+        .msg { margin: 5px; padding: 8px 12px; border-radius: 10px; max-width: 80%; font-size: 14px; }
+        .msg.sent { background: #4f46e5; color: white; align-self: flex-start; }
+        .msg.received { background: #e2e8f0; color: #1e293b; align-self: flex-end; }
+
+        input#messageInput { width: 100%; padding: 12px; margin-bottom: 10px; border: 2px solid #e2e8f0; border-radius: 10px; outline: none; transition: 0.3s; }
+        input#messageInput:focus { border-color: #4f46e5; }
+
+        button#sendAuthBtn { width: 100%; padding: 15px; font-size: 16px; border: none; border-radius: 12px; background: #4f46e5; color: white; cursor: pointer; touch-action: none; transition: 0.2s; font-weight: bold; }
+        button#sendAuthBtn:active { transform: scale(0.98); background: #4338ca; }
+        
+        #peer-info { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 8px; border-radius: 8px; word-break: break-all; margin-bottom: 15px; }
+        canvas { width: 100%; height: 80px; background: #f8fafc; border-radius: 10px; margin-top: 15px; border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <h2>المتاهة الزمنية 🛡️</h2>
-    <div id="peer-info">جاري توليد معرف هويتك اللامركزية...</div>
+    <h3>متاهة Chat Pro 🛡️</h3>
+    <div id="peer-info">جاري توليد هويتك اللامركزية...</div>
     
-    <input type="text" id="targetId" placeholder="أدخل معرف الطرف الآخر للربط">
-    <button id="connectBtn" style="background: #10b981; font-size: 14px; padding: 10px; margin-bottom: 20px;">ربط العقد 🔗</button>
+    <div style="display: flex; gap: 5px;">
+        <input type="text" id="targetId" placeholder="معرف الصديق" style="flex: 2; padding: 8px; font-size: 12px;">
+        <button id="connectBtn" style="flex: 1; background: #10b981; border: none; color: white; border-radius: 8px; cursor: pointer;">ربط 🔗</button>
+    </div>
 
-    <div id="displayStatus" class="status-badge idle">في انتظار اللمس أو الربط...</div>
+    <div id="chatBox">
+        <p style="font-size: 10px; color: #94a3b8; text-align: center;">بداية الاتصال المشفر</p>
+    </div>
+
+    <div id="displayStatus" class="status-badge idle">تحتاج لـ 5 لمسات للتدريب</div>
     
-    <button id="authBtn">إثبات الهوية باللمس</button>
+    <input type="text" id="messageInput" placeholder="اكتب رسالة سرية...">
+    <button id="sendAuthBtn">إرسال بالبصمة السلوكية 🚀</button>
     
     <canvas id="liveGraph"></canvas>
 </div>
 
 <script type="module">
-    // استيراد العقل المدبر وجهاز اللاسلكي
     import { BehavioralEngine } from './behavior.js';
     import { P2PNetwork } from './network.js';
 
@@ -44,9 +60,14 @@
     let startTime = 0;
     const points = [];
 
-    // إعداد الشبكة
+    // إعداد الشبكة مع معالجة الرسائل الواردة
     const net = new P2PNetwork((data) => {
-        updateUI(data.includes("✅") ? "trusted" : "warning", "رسالة من الشبكة: " + data);
+        if (data.type === "chat") {
+            addMessageToBox(data.text, 'received');
+            updateUI("trusted", "وصلت رسالة جديدة ✅");
+        } else if (data.type === "system") {
+            updateUI("warning", data.text);
+        }
     });
 
     net.init((id) => {
@@ -56,29 +77,50 @@
     document.getElementById('connectBtn').onclick = () => {
         const targetId = document.getElementById('targetId').value;
         net.connect(targetId);
-        updateUI("idle", "تم إرسال طلب الربط 🔗");
+        updateUI("idle", "محاولة الربط مع العقدة...");
     };
 
-    // معالجة اللمس
-    const btn = document.getElementById('authBtn');
-    btn.onpointerdown = () => startTime = performance.now();
-    btn.onpointerup = () => {
+    const sendBtn = document.getElementById('sendAuthBtn');
+    const msgInput = document.getElementById('messageInput');
+
+    sendBtn.onpointerdown = () => startTime = performance.now();
+    
+    sendBtn.onpointerup = () => {
         const duration = performance.now() - startTime;
+        const msgText = msgInput.value;
+
+        // تحليل السلوك
         const result = engine.analyze(duration, 0);
 
-        let msg = "";
         if (result.learning) {
-            msg = `جاري التدريب... (${engine.model.count}/5)`;
-            updateUI("idle", msg);
+            updateUI("idle", `مرحلة التدريب (${engine.model.count}/5)`);
         } else {
-            msg = result.ok ? "تم التحقق من هويتك ✅" : "تحذير: نمط غير مطابق! ❌";
-            updateUI(result.ok ? "trusted" : "warning", msg);
-            // إرسال النتيجة للطرف الآخر عبر P2P
-            net.sendValidation(msg);
+            if (result.ok) {
+                if (msgText.trim() === "") {
+                    updateUI("trusted", "البصمة صحيحة! اكتب شيئاً للإرسال.");
+                } else {
+                    // إرسال الرسالة الحقيقية عبر الشبكة
+                    net.sendData({ type: "chat", text: msgText });
+                    addMessageToBox(msgText, 'sent');
+                    msgInput.value = ""; // مسح الخانة
+                    updateUI("trusted", "تم الإرسال بأمان ✅");
+                }
+            } else {
+                updateUI("warning", "فشل الإرسال: بصمة يد غريبة! ❌");
+                net.sendData({ type: "system", text: "تنبيه: محاولة اختراق فاشلة للنمط!" });
+            }
         }
-
         renderGraph(1000/duration, result.ok);
     };
+
+    function addMessageToBox(text, side) {
+        const chatBox = document.getElementById('chatBox');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `msg ${side}`;
+        msgDiv.innerText = text;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 
     function updateUI(status, text) {
         const el = document.getElementById('displayStatus');
@@ -90,17 +132,15 @@
         const canvas = document.getElementById('liveGraph');
         const ctx = canvas.getContext('2d');
         points.push({vel, ok});
-        if(points.length > 25) points.shift();
-
+        if(points.length > 30) points.shift();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         points.forEach((p, i) => {
-            ctx.fillStyle = p.ok ? "#3b82f6" : "#ef4444";
+            ctx.fillStyle = p.ok ? "#4f46e5" : "#ef4444";
             ctx.beginPath();
-            ctx.arc((i * 12) + 10, canvas.height - (p.vel * 10), 5, 0, Math.PI * 2);
+            ctx.arc((i * 12) + 10, canvas.height - (p.vel * 5), 4, 0, Math.PI * 2);
             ctx.fill();
         });
     }
 </script>
-
 </body>
 </html>
