@@ -1,8 +1,22 @@
-// إدارة الشبكة اللامركزية P2P - نسخة Chat Pro المطورة
+// إدارة الشبكة اللامركزية P2P - نسخة Chat Pro العالمية
 export class P2PNetwork {
     constructor(onMessageReceived) {
-        // إنشاء اتصال PeerJS مع إعدادات تلقائية لخوادم STUN لجلب الـ IP
-        this.peer = new Peer(); 
+        /**
+         * تحديث استراتيجي: إضافة خوادم STUN عالمية.
+         * هذه الخوادم تعمل كـ "دليل هاتف" ليعرف كل متصفح مكان الآخر 
+         * عبر الإنترنت العالمي وتجاوز جدران الحماية (NAT Traversal).
+         */
+        this.peer = new Peer({
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
+                ],
+                'sdpSemantics': 'unified-plan'
+            }
+        }); 
         this.conn = null;
         this.onMessage = onMessageReceived;
     }
@@ -11,7 +25,7 @@ export class P2PNetwork {
     init(onIdReady) {
         this.peer.on('open', (id) => onIdReady(id));
 
-        // الاستماع للاتصالات القادمة (مثل استقبال مكالمة)
+        // الاستماع للاتصالات القادمة
         this.peer.on('connection', (c) => {
             this.conn = c;
             console.log("تم الاتصال بواسطة طرف خارجي 🔗");
@@ -28,8 +42,12 @@ export class P2PNetwork {
     // محاولة الربط مع طرف آخر (تونس <-> أمريكا)
     connect(peerId) {
         if (!peerId) return;
+        /**
+         * reliable: true تضمن وصول الرسائل كاملة وبترتيبها
+         * حتى لو كان الإنترنت ضعيفاً بين القارات.
+         */
         this.conn = this.peer.connect(peerId, {
-            reliable: true // ضمان وصول الرسائل بالترتيب الصحيح
+            reliable: true 
         });
         this._setupListeners();
     }
@@ -44,7 +62,6 @@ export class P2PNetwork {
         });
 
         this.conn.on('data', (data) => {
-            // هنا نستقبل الكائنات (Objects) ونمررها للواجهة
             this.onMessage(data);
         });
 
@@ -55,7 +72,6 @@ export class P2PNetwork {
 
     /**
      * إرسال البيانات (رسائل دردشة أو تنبيهات نظام)
-     * @param {Object} dataObject - { type: 'chat', text: '...' }
      */
     sendData(dataObject) {
         if (this.conn && this.conn.open) {
