@@ -13,19 +13,17 @@
         .trusted { background: #dcfce7; color: #166534; }
         .warning { background: #fee2e2; color: #991b1b; }
         
-        /* تصميم صندوق الدردشة */
+        #id-container { background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        #peer-info { font-size: 11px; color: #64748b; word-break: break-all; text-align: right; flex: 1; }
+        #copyBtn { background: #4f46e5; color: white; border: none; border-radius: 5px; padding: 5px 10px; font-size: 10px; cursor: pointer; white-space: nowrap; transition: 0.2s; }
+
         #chatBox { height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; margin: 15px 0; background: #fafafa; text-align: right; display: flex; flex-direction: column; }
         .msg { margin: 5px; padding: 8px 12px; border-radius: 10px; max-width: 80%; font-size: 14px; }
         .msg.sent { background: #4f46e5; color: white; align-self: flex-start; }
         .msg.received { background: #e2e8f0; color: #1e293b; align-self: flex-end; }
 
-        input#messageInput { width: 100%; padding: 12px; margin-bottom: 10px; border: 2px solid #e2e8f0; border-radius: 10px; outline: none; transition: 0.3s; }
-        input#messageInput:focus { border-color: #4f46e5; }
-
-        button#sendAuthBtn { width: 100%; padding: 15px; font-size: 16px; border: none; border-radius: 12px; background: #4f46e5; color: white; cursor: pointer; touch-action: none; transition: 0.2s; font-weight: bold; }
-        button#sendAuthBtn:active { transform: scale(0.98); background: #4338ca; }
-        
-        #peer-info { font-size: 11px; color: #64748b; background: #f1f5f9; padding: 8px; border-radius: 8px; word-break: break-all; margin-bottom: 15px; }
+        input#messageInput { width: 100%; padding: 12px; margin-bottom: 10px; border: 2px solid #e2e8f0; border-radius: 10px; outline: none; box-sizing: border-box; }
+        button#sendAuthBtn { width: 100%; padding: 15px; font-size: 16px; border: none; border-radius: 12px; background: #4f46e5; color: white; cursor: pointer; touch-action: none; font-weight: bold; }
         canvas { width: 100%; height: 80px; background: #f8fafc; border-radius: 10px; margin-top: 15px; border: 1px solid #e2e8f0; }
     </style>
 </head>
@@ -33,10 +31,14 @@
 
 <div class="app-container">
     <h3>متاهة Chat Pro 🛡️</h3>
-    <div id="peer-info">جاري توليد هويتك اللامركزية...</div>
     
-    <div style="display: flex; gap: 5px;">
-        <input type="text" id="targetId" placeholder="معرف الصديق" style="flex: 2; padding: 8px; font-size: 12px;">
+    <div id="id-container">
+        <span id="peer-info">جاري توليد هويتك...</span>
+        <button id="copyBtn" onclick="copyMyId()">نسخ 📋</button>
+    </div>
+
+    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+        <input type="text" id="targetId" placeholder="معرف الصديق" style="flex: 2; padding: 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
         <button id="connectBtn" style="flex: 1; background: #10b981; border: none; color: white; border-radius: 8px; cursor: pointer;">ربط 🔗</button>
     </div>
 
@@ -60,7 +62,6 @@
     let startTime = 0;
     const points = [];
 
-    // إعداد الشبكة مع معالجة الرسائل الواردة
     const net = new P2PNetwork((data) => {
         if (data.type === "chat") {
             addMessageToBox(data.text, 'received');
@@ -88,26 +89,23 @@
     sendBtn.onpointerup = () => {
         const duration = performance.now() - startTime;
         const msgText = msgInput.value;
-
-        // تحليل السلوك
-        const result = engine.analyze(duration, 0);
+        const result = engine.analyze(duration);
 
         if (result.learning) {
-            updateUI("idle", `مرحلة التدريب (${engine.model.count}/5)`);
+            updateUI("idle", `مرحلة التدريب (${result.count}/5)`);
         } else {
             if (result.ok) {
                 if (msgText.trim() === "") {
-                    updateUI("trusted", "البصمة صحيحة! اكتب شيئاً للإرسال.");
+                    updateUI("trusted", "البصمة صحيحة! اكتب شيئاً.");
                 } else {
-                    // إرسال الرسالة الحقيقية عبر الشبكة
                     net.sendData({ type: "chat", text: msgText });
                     addMessageToBox(msgText, 'sent');
-                    msgInput.value = ""; // مسح الخانة
+                    msgInput.value = "";
                     updateUI("trusted", "تم الإرسال بأمان ✅");
                 }
             } else {
-                updateUI("warning", "فشل الإرسال: بصمة يد غريبة! ❌");
-                net.sendData({ type: "system", text: "تنبيه: محاولة اختراق فاشلة للنمط!" });
+                updateUI("warning", result.status === 'locked' ? result.message : "فشل التحقق: نمط غريب! ❌");
+                net.sendData({ type: "system", text: "تنبيه: محاولة اختراق فاشلة!" });
             }
         }
         renderGraph(1000/duration, result.ok);
@@ -141,6 +139,23 @@
             ctx.fill();
         });
     }
+
+    // تعريف دالة النسخ لتكون متاحة للزر في HTML
+    window.copyMyId = function() {
+        const fullText = document.getElementById('peer-info').innerText;
+        const idOnly = fullText.replace("معرفك: ", ""); 
+
+        navigator.clipboard.writeText(idOnly).then(() => {
+            const copyBtn = document.getElementById('copyBtn');
+            const originalText = copyBtn.innerText;
+            copyBtn.innerText = "تم النسخ! ✅";
+            copyBtn.style.background = "#10b981";
+            setTimeout(() => {
+                copyBtn.innerText = originalText;
+                copyBtn.style.background = "#4f46e5";
+            }, 2000);
+        });
+    };
 </script>
 </body>
 </html>
