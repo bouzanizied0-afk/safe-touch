@@ -2,120 +2,54 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>بوابة الزمن – IT Protocol</title>
+<title>بوابة زمنية</title>
 <style>
 body {
-  background: #000;
-  color: #0f0;
+  background: black;
+  color: #00ff00;
   font-family: monospace;
   text-align: center;
   padding-top: 40px;
 }
 #time {
   font-size: 48px;
-  margin: 20px 0;
+  margin: 20px;
 }
 #msg {
-  font-size: 28px;
-  color: #0ff;
-  margin-top: 20px;
-}
-.note {
-  color: #888;
-  font-size: 14px;
-  margin-top: 20px;
-}
-input, button {
-  font-family: monospace;
-  font-size: 16px;
-  padding: 6px;
-  margin: 5px;
-  border-radius: 4px;
-  border: 1px solid #0f0;
-  background: #111;
-  color: #0f0;
-}
-button:hover {
-  background: #005500;
-  cursor: pointer;
+  font-size: 24px;
+  color: #0af;
 }
 </style>
 </head>
 <body>
 
-<h1>⏳ بوابة الزمن – IT Protocol</h1>
-
+<h2>⏳ الوقت المركزي للموقع</h2>
 <div id="time">--:--:--</div>
 <div id="msg"></div>
 
-<div class="note">
-غيّر وقتك الخاص أو انتظر<br>
-الرسالة تظهر عند 03:00
-</div>
-
-<!-- خانة اختيار الوقت -->
-<label>ضع وقتك الخاص (HH:MM): </label>
-<input type="time" id="customTime">
-<button onclick="setCustomTime()">تطبيق الوقت</button>
-
 <script>
-// فرق الوقت بالمللي ثانية
-let offsetMs = 0;
+async function fetchTime() {
+  const res = await fetch('time.json?'+Date.now());
+  const data = await res.json();
 
-// تعيين الوقت الجديد
-function setCustomTime() {
-  const input = document.getElementById("customTime").value;
-  if (!input) return;
-
-  const [hh, mm] = input.split(":").map(Number);
   const now = new Date();
-  const target = new Date(now);
-  target.setHours(hh, mm, 0, 0);
+  const adjusted = new Date(now.getTime() + data.offsetMinutes * 60000);
 
-  offsetMs = target - now;
+  const h = adjusted.getHours().toString().padStart(2,'0');
+  const m = adjusted.getMinutes().toString().padStart(2,'0');
+  const s = adjusted.getSeconds().toString().padStart(2,'0');
 
-  // تخزين في localStorage ليبقى عند إعادة فتح الصفحة
-  localStorage.setItem("it_offset", offsetMs);
-}
+  document.getElementById('time').textContent = `${h}:${m}:${s}`;
 
-// عند تحميل الصفحة: تطبيق الوقت المخزن
-window.addEventListener("load", () => {
-  const savedOffset = localStorage.getItem("it_offset");
-  if (savedOffset) {
-    offsetMs = Number(savedOffset);
-  }
-});
-
-// تحديث الوقت كل ثانية
-function updateTime() {
-  const now = new Date();
-  const adjusted = new Date(now.getTime() + offsetMs);
-
-  // زمن IT: 1-12
-  let h = adjusted.getHours() % 12;
-  if (h === 0) h = 12;
-
-  const m = adjusted.getMinutes();
-  const s = adjusted.getSeconds();
-
-  const hh = h.toString().padStart(2, '0');
-  const mm = m.toString().padStart(2, '0');
-  const ss = s.toString().padStart(2, '0');
-
-  // عرض الوقت
-  document.getElementById("time").textContent = `${hh}:${mm}:${ss}`;
-
-  // شرط الرسالة
-  if (hh === "03" && mm === "00") {
-    document.getElementById("msg").textContent = "لقد نجحت يا زياد";
+  if (h === "03" && m === "00") {
+    document.getElementById('msg').textContent = data.message;
   } else {
-    document.getElementById("msg").textContent = "";
+    document.getElementById('msg').textContent = "";
   }
 }
 
-// التحديث كل ثانية
-setInterval(updateTime, 1000);
-updateTime();
+setInterval(fetchTime, 1000);
+fetchTime();
 </script>
 
 </body>
