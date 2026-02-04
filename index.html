@@ -2,47 +2,36 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ البوابة الزمنية المركزية – مزامنة آنية</title>
+<title>IT Temporal – بوابة زمنية ذاتية المراقبة</title>
 <style>
-body {
-  background:#000;
-  color:#0f0;
-  font-family: monospace;
-  text-align:center;
-  padding-top:50px;
-}
-#time {
-  font-size:48px;
-  margin:20px 0;
-}
-input, button {
-  font-size:18px;
-  padding:6px;
-}
-#status {
-  color:#0ff;
-  margin-top:15px;
-}
+body { background:#0b0b0b; color:#0f0; font-family:monospace; text-align:center; padding:20px }
+#time { font-size:48px; margin:20px }
+input,button { font-size:16px; padding:6px }
+#errors { background:#000; border-left:3px solid #f00; color:#f00; max-height:160px; overflow:auto; padding:10px; text-align:left }
+#status { color:#0ff; margin-top:10px }
 </style>
 </head>
 <body>
 
-<h1>⏳ البوابة الزمنية</h1>
+<h2>⏳ IT Temporal</h2>
 <div id="time">--:--:--</div>
 
 <div>
-  ⏱️ فرق الدقائق:
-  <input id="offsetInput" type="number" value="0">
-  <button onclick="applyOffset()">تطبيق</button>
+فرق الدقائق:
+<input id="offsetInput" type="number" value="0">
+<button onclick="applyOffset()">تطبيق</button>
 </div>
 
-<div id="status">في انتظار المزامنة...</div>
+<div id="status">🔌 الاتصال…</div>
+
+<h3>سجل الأخطاء</h3>
+<div id="errors"></div>
 
 <script type="module">
+/* ========= Firebase ========= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --------------- إعدادات Firebase ---------------
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
@@ -53,50 +42,72 @@ const firebaseConfig = {
   appId: "1:456612217542:web:51d963523b1306e0bf4dc7"
 };
 
-// --------------- تهيئة Firebase ---------------
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const timeRef = ref(db, "portalTime");
+const timeRef = ref(db, "portal/offset");
 
-let offsetMinutes = 0;
-let message = "لقد نجحت يا زياد";
+/* ========= AGENT 1: HUNTER ========= */
+function logError(msg) {
+  const e = document.createElement("div");
+  e.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  document.getElementById("errors").appendChild(e);
+  console.error(msg);
+}
 
-// --------------- الاستماع المركزي اللحظي ---------------
-onValue(timeRef, snap => {
-  if(!snap.exists()) return;
-  const data = snap.val();
-  offsetMinutes = data.offsetMinutes || 0;
-  document.getElementById("offsetInput").value = offsetMinutes;
-  document.getElementById("status").textContent = "⛓️ متزامن مع البوابة";
-});
-
-// --------------- تحديث الوقت بشكل آنٍ ---------------
-function renderTime() {
-  const now = new Date();
-  const adjusted = new Date(now.getTime() + offsetMinutes*60000);
-
-  const h = adjusted.getHours().toString().padStart(2,'0');
-  const m = adjusted.getMinutes().toString().padStart(2,'0');
-  const s = adjusted.getSeconds().toString().padStart(2,'0');
-
-  document.getElementById("time").textContent = `${h}:${m}:${s}`;
-
-  // عرض الرسالة عند الساعة 03:00
-  if(h === "03" && m === "00"){
-    document.getElementById("status").textContent = message;
+/* ========= AGENT 2: HEALER ========= */
+function heal(reason) {
+  logError("🛠️ صيانة ذاتية: " + reason);
+  try {
+    off(timeRef);
+    subscribe(); // إعادة الاشتراك
+  } catch(e) {
+    logError("❌ فشل الصيانة: " + e.message);
   }
 }
-setInterval(renderTime, 200); // تحديث كل 200 ملي ثانية → قريب جدًا من الآنية
 
-// --------------- الكتابة الوحيدة (تغيّر الجميع فورًا) ---------------
-window.applyOffset = function() {
-  const val = Number(document.getElementById("offsetInput").value);
-  set(timeRef, {
-    offsetMinutes: val,
-    updatedAt: Date.now()
+/* ========= AGENT 3: WATCHER ========= */
+let lastUpdate = Date.now();
+setInterval(() => {
+  if (Date.now() - lastUpdate > 3000) {
+    heal("انقطاع أو جمود في التحديث");
+  }
+}, 1500);
+
+/* ========= CORE ========= */
+let offsetMinutes = 0;
+
+function subscribe() {
+  onValue(timeRef, snap => {
+    if (!snap.exists()) return;
+    offsetMinutes = snap.val();
+    document.getElementById("offsetInput").value = offsetMinutes;
+    document.getElementById("status").textContent = "⛓️ متزامن";
+    lastUpdate = Date.now();
+  }, err => {
+    logError("❌ Firebase: " + err.message);
+    heal("خطأ اتصال");
   });
-};
-</script>
+}
+subscribe();
 
+window.applyOffset = () => {
+  const val = Number(offsetInput.value);
+  set(timeRef, val).catch(e => logError("❌ كتابة: " + e.message));
+};
+
+/* ========= RENDER ========= */
+setInterval(() => {
+  const now = new Date(Date.now() + offsetMinutes * 60000);
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById("time").textContent = `${h}:${m}:${s}`;
+}, 1000);
+
+/* ========= GLOBAL TRAPS ========= */
+window.onerror = (m, s, l) => logError(`JS: ${m} (سطر ${l})`);
+window.onunhandledrejection = e => logError("Promise: " + e.reason);
+
+</script>
 </body>
 </html>
