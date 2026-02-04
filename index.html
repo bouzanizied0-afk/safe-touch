@@ -23,7 +23,7 @@ body {
 .note {
   color: #888;
   font-size: 14px;
-  margin-top: 30px;
+  margin-top: 20px;
 }
 input, button {
   font-family: monospace;
@@ -73,12 +73,23 @@ function setCustomTime() {
   target.setHours(hh, mm, 0, 0);
 
   offsetMs = target - now;
+
+  // تخزين في localStorage ليبقى عند إعادة فتح الصفحة
+  localStorage.setItem("it_offset", offsetMs);
 }
+
+// عند تحميل الصفحة: تطبيق الوقت المخزن
+window.addEventListener("load", () => {
+  const savedOffset = localStorage.getItem("it_offset");
+  if (savedOffset) {
+    offsetMs = Number(savedOffset);
+  }
+});
 
 // تحديث الوقت كل ثانية
 function updateTime() {
   const now = new Date();
-  const adjusted = new Date(now.getTime() + offsetMs); // الوقت الظاهر
+  const adjusted = new Date(now.getTime() + offsetMs);
 
   // زمن IT: 1-12
   let h = adjusted.getHours() % 12;
