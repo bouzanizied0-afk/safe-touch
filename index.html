@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ IT Temporal Core – الحروف المشتركة</title>
+<title>⏳ Temporal Minute Channel</title>
 <style>
 body {
   background:#000;
@@ -11,15 +11,14 @@ body {
   text-align:center;
   padding-top:40px;
 }
-#value {
-  font-size:60px;
+#minute {
+  font-size:64px;
   margin:20px;
 }
-#charInput {
-  font-size:24px;
-  padding:5px;
-  width:80px;
-  text-align:center;
+#letter {
+  font-size:48px;
+  color:#ff0;
+  margin-top:10px;
 }
 button {
   font-size:18px;
@@ -28,34 +27,24 @@ button {
   background:#003300;
   color:#0f0;
   border:1px solid #0f0;
-  cursor:pointer;
-}
-#displayChar {
-  font-size:48px;
-  margin-top:30px;
-  color:#ff0;
 }
 </style>
 </head>
 <body>
 
-<h2>⏳ الزمن المشترك مع الحروف</h2>
+<h2>⏳ القناة الزمنية</h2>
 
-<div id="value">--</div>
+<div id="minute">--</div>
+<div id="letter">---</div>
 
-<div>
-  ⌨️ اكتب حرف: 
-  <input type="text" id="charInput" maxlength="1">
-  <button onclick="sendChar()">إرسال</button>
-</div>
-
-<div id="displayChar">---</div>
+<button onclick="changeMinute(1)">➕ دقيقة</button>
+<button onclick="changeMinute(-1)">➖ دقيقة</button>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// إعداد Firebase
+// 🔐 إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
@@ -68,49 +57,33 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const refTime = ref(db, "temporal");
-const refChar = ref(db, "currentChar");
+const timeRef = ref(db, "temporal/minute");
 
-let current = 0;
-let direction = 0;
+// الحالة المحلية
+let currentMinute = 0;
 
-// استقبال الوقت المركزي
-onValue(refTime, snap => {
+// 🔄 استقبال فوري من الخادم
+onValue(timeRef, snap => {
   if (!snap.exists()) return;
-  const data = snap.val();
-  current = data.value;
-  direction = data.direction;
-  document.getElementById("value").textContent = current;
-});
+  currentMinute = snap.val();
+  document.getElementById("minute").textContent = currentMinute;
 
-// نبض الحركة للوقت
-setInterval(() => {
-  if (direction !== 0) {
-    set(refTime, {
-      value: current + direction,
-      direction
-    });
+  // 🧠 الترجمة الزمنية
+  if (currentMinute === 4) {
+    document.getElementById("letter").textContent = "ف";
+  } else {
+    document.getElementById("letter").textContent = "---";
   }
-}, 1000);
-
-// استقبال الحرف المشترك فوريًا
-onValue(refChar, snap => {
-  if (!snap.exists()) return;
-  const data = snap.val();
-  document.getElementById("displayChar").textContent = data.char || "---";
 });
 
-// إرسال حرف من المستخدم
-function sendChar() {
-  const char = document.getElementById("charInput").value.trim();
-  if(char === "") return;
-  set(refChar, {
-    char,
-    updatedAt: Date.now()
-  });
-  document.getElementById("charInput").value = "";
-}
+// ⏱️ تغيير الزمن (إرسال فقط زمن)
+window.changeMinute = (delta) => {
+  let next = currentMinute + delta;
+  if (next < 0) next = 59;
+  if (next > 59) next = 0;
 
+  set(timeRef, next);
+};
 </script>
 
 </body>
