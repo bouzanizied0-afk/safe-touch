@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>بوابة الزمن التجريبية</title>
+<style>
+body { font-family: monospace; background: #0b0b0b; color: #0f0; text-align:center; padding:20px; }
+#utc-time { font-size: 36px; margin: 20px 0; }
+#local-time { font-size: 32px; margin: 20px 0; color:#ff0; }
+#message { font-size: 28px; margin: 20px 0; color:#0af; }
+input { width: 60px; padding:5px; margin:5px; }
+button { padding:10px 20px; margin:10px; background:#003300; color:#0f0; border:1px solid #0f0; cursor:pointer; }
+button:hover { background:#005500; }
+</style>
+</head>
+<body>
+
+<h2>بوابة الزمن التجريبية</h2>
+
+<div>الوقت العالمي (UTC): <span id="utc-time">--:--:--</span></div>
+
+<div>
+  عدّل زمن الموقع: 
+  <input type="number" id="minute-offset" value="0"> دقيقة
+  <input type="number" id="second-offset" value="0"> ثانية
+  <button onclick="updateOffset()">تطبيق التعديل</button>
+</div>
+
+<div>الوقت المعدّل للبوابة: <span id="local-time">--:--:--</span></div>
+<div id="message"></div>
+
+<script>
+// ===== إعدادات التوقيت =====
+let minuteOffset = 0;
+let secondOffset = 0;
+
+// تحديث الإزاحة
+function updateOffset() {
+  minuteOffset = parseInt(document.getElementById("minute-offset").value) || 0;
+  secondOffset = parseInt(document.getElementById("second-offset").value) || 0;
+}
+
+// ===== تحديث الساعة =====
+function updateTime() {
+  const now = new Date();
+  
+  // الوقت العالمي
+  const h = String(now.getUTCHours()).padStart(2,'0');
+  const m = String(now.getUTCMinutes()).padStart(2,'0');
+  const s = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById("utc-time").textContent = `${h}:${m}:${s}`;
+  
+  // الوقت المعدّل
+  let local = new Date(now.getTime() + minuteOffset*60*1000 + secondOffset*1000);
+  const lh = String(local.getUTCHours()).padStart(2,'0');
+  const lm = String(local.getUTCMinutes()).padStart(2,'0');
+  const ls = String(local.getUTCSeconds()).padStart(2,'0');
+  document.getElementById("local-time").textContent = `${lh}:${lm}:${ls}`;
+  
+  // عرض رسالة عند وقت معين (مثال: 03:00:00)
+  if(lh === "03" && lm === "00" && ls === "00") {
+    document.getElementById("message").textContent = "لقد نجحت يا زياد";
+  } else {
+    document.getElementById("message").textContent = "";
+  }
+}
+
+// ===== تشغيل التحديث كل نصف ثانية =====
+setInterval(updateTime, 500);
+updateTime();
+</script>
+
+</body>
+</html>
