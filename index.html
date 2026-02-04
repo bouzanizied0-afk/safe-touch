@@ -58,11 +58,11 @@
 </div>
 
 <script>
-  // ======== إعداد Firebase (ضع بياناتك هنا) ========
+  // ======== إعداد Firebase (ضع بيانات مشروعك هنا) ========
   const firebaseConfig = {
     apiKey: "ضع_هنا_API_KEY",
     authDomain: "ضع_هنا_PROJECT_ID.firebaseapp.com",
-    databaseURL: "ضع_هنا_DATABASE_URL",
+    databaseURL: "ضع_هنا_DATABASE_URL", 
     projectId: "ضع_هنا_PROJECT_ID",
     storageBucket: "ضع_هنا_PROJECT_ID.appspot.com",
     messagingSenderId: "ضع_هنا_SENDER_ID",
@@ -75,10 +75,11 @@
   const offsetRef = db.ref('temporalGateway/offsetMinutes');
   const messageRef = db.ref('temporalGateway/message');
 
+  // القيم الافتراضية
   let offsetMinutes = 0;
   let messageText = "لقد نجحت يا زياد";
 
-  // ======== قراءة البيانات عند التغيير ========
+  // ======== الاستماع للتغييرات من Firebase ========
   offsetRef.on('value', snapshot => {
     offsetMinutes = snapshot.val() || 0;
     document.getElementById('offsetInput').value = offsetMinutes;
@@ -88,10 +89,10 @@
     messageText = snapshot.val() || "";
   });
 
-  // ======== تحديث الوقت ========
+  // ======== تحديث الوقت بشكل لحظي ========
   function updateTime() {
     const now = new Date();
-    const adjusted = new Date(now.getTime() + offsetMinutes * 60000);
+    const adjusted = new Date(now.getTime() + (offsetMinutes || 0) * 60000);
 
     const h = adjusted.getHours().toString().padStart(2,'0');
     const m = adjusted.getMinutes().toString().padStart(2,'0');
@@ -100,7 +101,7 @@
     document.getElementById('time').textContent = `${h}:${m}:${s}`;
 
     if(h === "03" && m === "00"){
-      document.getElementById('msg').textContent = messageText;
+      document.getElementById('msg').textContent = messageText || "";
     } else {
       document.getElementById('msg').textContent = "";
     }
@@ -111,7 +112,7 @@
   // ======== تعديل Offset من المستخدم ========
   function updateOffset(){
     const val = parseInt(document.getElementById('offsetInput').value) || 0;
-    offsetRef.set(val);
+    offsetRef.set(val); // تحديث في Firebase → ينعكس فورًا على جميع المتصفحات
   }
 
 </script>
