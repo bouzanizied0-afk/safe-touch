@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ IT Temporal Core</title>
+<title>⏳ IT Temporal Core – الحروف المشتركة</title>
 <style>
 body {
   background:#000;
@@ -15,6 +15,12 @@ body {
   font-size:60px;
   margin:20px;
 }
+#charInput {
+  font-size:24px;
+  padding:5px;
+  width:80px;
+  text-align:center;
+}
 button {
   font-size:18px;
   padding:10px 20px;
@@ -22,26 +28,38 @@ button {
   background:#003300;
   color:#0f0;
   border:1px solid #0f0;
+  cursor:pointer;
+}
+#displayChar {
+  font-size:48px;
+  margin-top:30px;
+  color:#ff0;
 }
 </style>
 </head>
 <body>
 
-<h2>⏳ الزمن المشترك</h2>
+<h2>⏳ الزمن المشترك مع الحروف</h2>
+
 <div id="value">--</div>
 
-<button onclick="move(1)">▶ للأمام</button>
-<button onclick="move(-1)">◀ للخلف</button>
-<button onclick="move(0)">⏸ توقف</button>
+<div>
+  ⌨️ اكتب حرف: 
+  <input type="text" id="charInput" maxlength="1">
+  <button onclick="sendChar()">إرسال</button>
+</div>
+
+<div id="displayChar">---</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
-  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app", // ✅ الرابط الصحيح
+  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "setouchi-it",
   storageBucket: "setouchi-it.appspot.com",
   messagingSenderId: "456612217542",
@@ -51,11 +69,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const refTime = ref(db, "temporal");
+const refChar = ref(db, "currentChar");
 
 let current = 0;
 let direction = 0;
 
-// استقبال فوري من أي متصفح
+// استقبال الوقت المركزي
 onValue(refTime, snap => {
   if (!snap.exists()) return;
   const data = snap.val();
@@ -64,15 +83,7 @@ onValue(refTime, snap => {
   document.getElementById("value").textContent = current;
 });
 
-// تحريك مركزي
-window.move = (dir) => {
-  set(refTime, {
-    value: current,
-    direction: dir
-  });
-};
-
-// نبض الحركة (مشترك)
+// نبض الحركة للوقت
 setInterval(() => {
   if (direction !== 0) {
     set(refTime, {
@@ -81,6 +92,25 @@ setInterval(() => {
     });
   }
 }, 1000);
+
+// استقبال الحرف المشترك فوريًا
+onValue(refChar, snap => {
+  if (!snap.exists()) return;
+  const data = snap.val();
+  document.getElementById("displayChar").textContent = data.char || "---";
+});
+
+// إرسال حرف من المستخدم
+function sendChar() {
+  const char = document.getElementById("charInput").value.trim();
+  if(char === "") return;
+  set(refChar, {
+    char,
+    updatedAt: Date.now()
+  });
+  document.getElementById("charInput").value = "";
+}
+
 </script>
 
 </body>
