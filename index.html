@@ -2,54 +2,113 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>بوابة زمنية</title>
+<title>بوابة الزمن – تجربة أولية</title>
 <style>
 body {
-  background: black;
-  color: #00ff00;
+  background: #000;
+  color: #0f0;
   font-family: monospace;
   text-align: center;
-  padding-top: 40px;
+  padding-top: 60px;
 }
 #time {
   font-size: 48px;
-  margin: 20px;
+  margin: 20px 0;
 }
 #msg {
-  font-size: 24px;
-  color: #0af;
+  font-size: 28px;
+  color: #0ff;
+  margin-top: 30px;
+}
+.note {
+  color: #888;
+  font-size: 14px;
+  margin-top: 40px;
+}
+input, button {
+  font-family: monospace;
+  font-size: 16px;
+  padding: 5px 10px;
+  margin: 5px;
+  border-radius: 3px;
 }
 </style>
 </head>
 <body>
 
-<h2>⏳ الوقت المركزي للموقع</h2>
-<div id="time">--:--:--</div>
+<h1>⏳ بوابة الزمن</h1>
+
+<div id="time">--:--</div>
 <div id="msg"></div>
 
+<div>
+  <input type="number" id="offsetInput" placeholder="Offset بالدقائق">
+  <button onclick="updateOffset()">تعديل الزمن</button>
+</div>
+
+<div class="note">
+الوقت يُستمد من الخادم الزمني<br>
+الرسالة تظهر عند 03:00
+</div>
+
 <script>
-async function fetchTime() {
-  const res = await fetch('time.json?'+Date.now());
-  const data = await res.json();
+const SERVER_URL = "http://YOUR_SERVER_IP:3000/time"; // ضع هنا IP أو localhost إذا محلي
 
-  const now = new Date();
-  const adjusted = new Date(now.getTime() + data.offsetMinutes * 60000);
+let offsetMinutes = 0;
+let message = "";
 
-  const h = adjusted.getHours().toString().padStart(2,'0');
-  const m = adjusted.getMinutes().toString().padStart(2,'0');
-  const s = adjusted.getSeconds().toString().padStart(2,'0');
-
-  document.getElementById('time').textContent = `${h}:${m}:${s}`;
-
-  if (h === "03" && m === "00") {
-    document.getElementById('msg').textContent = data.message;
-  } else {
-    document.getElementById('msg').textContent = "";
+// جلب الوقت من الخادم
+async function fetchTimeFromServer() {
+  try {
+    const res = await fetch(SERVER_URL + "?" + Date.now());
+    const data = await res.json();
+    offsetMinutes = data.offsetMinutes;
+    message = data.message;
+  } catch(e) {
+    console.error("خطأ في الاتصال بالخادم:", e);
   }
 }
 
-setInterval(fetchTime, 1000);
-fetchTime();
+// تحديث الوقت في الصفحة
+function updateTime() {
+  const now = new Date();
+  const adjusted = new Date(now.getTime() + offsetMinutes * 60000);
+
+  const h = adjusted.getHours().toString().padStart(2,'0');
+  const m = adjusted.getMinutes().toString().padStart(2,'0');
+
+  document.getElementById("time").textContent = `${h}:${m}`;
+
+  if(h === "03" && m === "00") {
+    document.getElementById("msg").textContent = message;
+  } else {
+    document.getElementById("msg").textContent = "";
+  }
+}
+
+// تعديل offset عبر الخادم
+async function updateOffset() {
+  const offset = Number(document.getElementById('offsetInput').value);
+  try {
+    await fetch(SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offsetMinutes: offset })
+    });
+    await fetchTimeFromServer(); // تحديث محلي بعد تعديل الخادم
+  } catch(e) {
+    console.error("خطأ في تعديل الخادم:", e);
+  }
+}
+
+// التحديث التلقائي كل ثانية
+setInterval(async () => {
+  await fetchTimeFromServer();
+  updateTime();
+}, 1000);
+
+fetchTimeFromServer();
+updateTime();
 </script>
 
 </body>
