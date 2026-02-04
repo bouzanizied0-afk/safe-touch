@@ -2,33 +2,14 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ بوابة الزمن – it</title>
-
+<title>⏳ بوابة الزمن</title>
 <style>
-body {
-  background:#000;
-  color:#0f0;
-  font-family: monospace;
-  text-align:center;
-  padding-top:50px;
-}
-#time {
-  font-size:48px;
-  margin:20px;
-}
-#msg {
-  font-size:26px;
-  color:#0ff;
-  margin-top:20px;
-}
-input, button {
-  font-size:18px;
-  padding:6px;
-  margin:5px;
-}
+body { background:#000; color:#0f0; font-family: monospace; text-align:center; padding-top:50px; }
+#time { font-size:48px; margin:20px; }
+#msg { font-size:26px; color:#0ff; margin-top:20px; }
+input, button { font-size:18px; padding:6px; margin:5px; }
 </style>
 </head>
-
 <body>
 
 <h1>⏳ بوابة الزمن</h1>
@@ -46,7 +27,7 @@ input, button {
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
-/* 🔐 إعدادات Firebase (من عندك) */
+// إعداد Firebase (استبدل بالقيم من مشروعك)
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
@@ -61,22 +42,22 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const timeRef = db.ref("it_time");
 
-/* قيم افتراضية */
+// قيم افتراضية
 let offsetMinutes = 0;
 let message = "لقد نجحت يا زياد";
 
-/* قراءة الزمن المركزي */
+// قراءة الوقت المركزي
 timeRef.on("value", snap => {
-  if (!snap.exists()) return;
+  if(!snap.exists()) return;
   const data = snap.val();
   offsetMinutes = data.offsetMinutes || 0;
   message = data.message || "";
 });
 
-/* تحديث الساعة */
+// تحديث الساعة
 function updateClock(){
   const now = new Date();
-  const adjusted = new Date(now.getTime() + offsetMinutes * 60000);
+  const adjusted = new Date(now.getTime() + offsetMinutes*60000);
 
   const h = adjusted.getHours().toString().padStart(2,'0');
   const m = adjusted.getMinutes().toString().padStart(2,'0');
@@ -91,10 +72,10 @@ function updateClock(){
   }
 }
 
-setInterval(updateClock, 1000);
+setInterval(updateClock,1000);
 updateClock();
 
-/* تعديل الزمن */
+// تعديل الزمن المركزي
 function setOffset(){
   const val = Number(document.getElementById("offset").value);
   timeRef.set({
@@ -103,6 +84,5 @@ function setOffset(){
   });
 }
 </script>
-
 </body>
 </html>
