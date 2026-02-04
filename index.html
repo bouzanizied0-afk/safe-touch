@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ البوابة الزمنية المركزية</title>
+<title>⏳ البوابة الزمنية المركزية – مزامنة آنية</title>
 <style>
 body {
   background:#000;
@@ -42,6 +42,7 @@ input, button {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// --------------- إعدادات Firebase ---------------
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
@@ -52,36 +53,43 @@ const firebaseConfig = {
   appId: "1:456612217542:web:51d963523b1306e0bf4dc7"
 };
 
+// --------------- تهيئة Firebase ---------------
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const timeRef = ref(db, "portalTime");
 
 let offsetMinutes = 0;
+let message = "لقد نجحت يا زياد";
 
-// الاستماع المركزي (هذا هو القلب)
+// --------------- الاستماع المركزي اللحظي ---------------
 onValue(timeRef, snap => {
-  if (!snap.exists()) return;
+  if(!snap.exists()) return;
   const data = snap.val();
   offsetMinutes = data.offsetMinutes || 0;
   document.getElementById("offsetInput").value = offsetMinutes;
   document.getElementById("status").textContent = "⛓️ متزامن مع البوابة";
 });
 
-// تحديث العرض فقط (لا كتابة)
+// --------------- تحديث الوقت بشكل آنٍ ---------------
 function renderTime() {
   const now = new Date();
-  const adjusted = new Date(now.getTime() + offsetMinutes * 60000);
+  const adjusted = new Date(now.getTime() + offsetMinutes*60000);
 
   const h = adjusted.getHours().toString().padStart(2,'0');
   const m = adjusted.getMinutes().toString().padStart(2,'0');
   const s = adjusted.getSeconds().toString().padStart(2,'0');
 
   document.getElementById("time").textContent = `${h}:${m}:${s}`;
-}
-setInterval(renderTime, 1000);
 
-// الكتابة الوحيدة (تغيّر الجميع)
-window.applyOffset = function () {
+  // عرض الرسالة عند الساعة 03:00
+  if(h === "03" && m === "00"){
+    document.getElementById("status").textContent = message;
+  }
+}
+setInterval(renderTime, 200); // تحديث كل 200 ملي ثانية → قريب جدًا من الآنية
+
+// --------------- الكتابة الوحيدة (تغيّر الجميع فورًا) ---------------
+window.applyOffset = function() {
   const val = Number(document.getElementById("offsetInput").value);
   set(timeRef, {
     offsetMinutes: val,
