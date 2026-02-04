@@ -2,14 +2,14 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>بوابة الزمن – IT</title>
+<title>بوابة الزمن – IT Protocol</title>
 <style>
 body {
   background: #000;
   color: #0f0;
   font-family: monospace;
   text-align: center;
-  padding-top: 60px;
+  padding-top: 40px;
 }
 #time {
   font-size: 48px;
@@ -18,46 +18,83 @@ body {
 #msg {
   font-size: 28px;
   color: #0ff;
-  margin-top: 30px;
+  margin-top: 20px;
 }
 .note {
   color: #888;
   font-size: 14px;
-  margin-top: 40px;
+  margin-top: 30px;
+}
+input, button {
+  font-family: monospace;
+  font-size: 16px;
+  padding: 6px;
+  margin: 5px;
+  border-radius: 4px;
+  border: 1px solid #0f0;
+  background: #111;
+  color: #0f0;
+}
+button:hover {
+  background: #005500;
+  cursor: pointer;
 }
 </style>
 </head>
 <body>
 
-<h1>⏳ بوابة الزمن</h1>
+<h1>⏳ بوابة الزمن – IT Protocol</h1>
 
 <div id="time">--:--:--</div>
 <div id="msg"></div>
 
 <div class="note">
-غيّر وقت الهاتف كما تشاء<br>
-الزمن هنا غير ليلي ولا نهاري
+غيّر وقتك الخاص أو انتظر<br>
+الرسالة تظهر عند 03:00
 </div>
 
+<!-- خانة اختيار الوقت -->
+<label>ضع وقتك الخاص (HH:MM): </label>
+<input type="time" id="customTime">
+<button onclick="setCustomTime()">تطبيق الوقت</button>
+
 <script>
+// فرق الوقت بالمللي ثانية
+let offsetMs = 0;
+
+// تعيين الوقت الجديد
+function setCustomTime() {
+  const input = document.getElementById("customTime").value;
+  if (!input) return;
+
+  const [hh, mm] = input.split(":").map(Number);
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(hh, mm, 0, 0);
+
+  offsetMs = target - now;
+}
+
+// تحديث الوقت كل ثانية
 function updateTime() {
   const now = new Date();
+  const adjusted = new Date(now.getTime() + offsetMs); // الوقت الظاهر
 
-  // === الزمن المجرد (IT Time) ===
-  let h = now.getHours() % 12;
-  if (h === 0) h = 12; // 12 بدل 0
+  // زمن IT: 1-12
+  let h = adjusted.getHours() % 12;
+  if (h === 0) h = 12;
 
-  const m = now.getMinutes();
-  const s = now.getSeconds();
+  const m = adjusted.getMinutes();
+  const s = adjusted.getSeconds();
 
   const hh = h.toString().padStart(2, '0');
   const mm = m.toString().padStart(2, '0');
   const ss = s.toString().padStart(2, '0');
 
-  const timeStr = `${hh}:${mm}:${ss}`;
-  document.getElementById("time").textContent = timeStr;
+  // عرض الوقت
+  document.getElementById("time").textContent = `${hh}:${mm}:${ss}`;
 
-  // === شرط الرسالة ===
+  // شرط الرسالة
   if (hh === "03" && mm === "00") {
     document.getElementById("msg").textContent = "لقد نجحت يا زياد";
   } else {
@@ -65,6 +102,7 @@ function updateTime() {
   }
 }
 
+// التحديث كل ثانية
 setInterval(updateTime, 1000);
 updateTime();
 </script>
