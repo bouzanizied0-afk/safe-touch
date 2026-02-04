@@ -2,35 +2,41 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>IT Temporal – بوابة زمنية ذاتية المراقبة</title>
+<title>⏳ IT Temporal Core</title>
 <style>
-body { background:#0b0b0b; color:#0f0; font-family:monospace; text-align:center; padding:20px }
-#time { font-size:48px; margin:20px }
-input,button { font-size:16px; padding:6px }
-#errors { background:#000; border-left:3px solid #f00; color:#f00; max-height:160px; overflow:auto; padding:10px; text-align:left }
-#status { color:#0ff; margin-top:10px }
+body {
+  background:#000;
+  color:#0f0;
+  font-family: monospace;
+  text-align:center;
+  padding-top:40px;
+}
+#value {
+  font-size:60px;
+  margin:20px;
+}
+button {
+  font-size:18px;
+  padding:10px 20px;
+  margin:5px;
+  background:#003300;
+  color:#0f0;
+  border:1px solid #0f0;
+}
 </style>
 </head>
 <body>
 
-<h2>⏳ IT Temporal</h2>
-<div id="time">--:--:--</div>
+<h2>⏳ الزمن المشترك</h2>
+<div id="value">--</div>
 
-<div>
-فرق الدقائق:
-<input id="offsetInput" type="number" value="0">
-<button onclick="applyOffset()">تطبيق</button>
-</div>
-
-<div id="status">🔌 الاتصال…</div>
-
-<h3>سجل الأخطاء</h3>
-<div id="errors"></div>
+<button onclick="move(1)">▶ للأمام</button>
+<button onclick="move(-1)">◀ للخلف</button>
+<button onclick="move(0)">⏸ توقف</button>
 
 <script type="module">
-/* ========= Firebase ========= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
@@ -44,70 +50,38 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const timeRef = ref(db, "portal/offset");
+const refTime = ref(db, "temporal");
 
-/* ========= AGENT 1: HUNTER ========= */
-function logError(msg) {
-  const e = document.createElement("div");
-  e.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-  document.getElementById("errors").appendChild(e);
-  console.error(msg);
-}
+let current = 0;
+let direction = 0;
 
-/* ========= AGENT 2: HEALER ========= */
-function heal(reason) {
-  logError("🛠️ صيانة ذاتية: " + reason);
-  try {
-    off(timeRef);
-    subscribe(); // إعادة الاشتراك
-  } catch(e) {
-    logError("❌ فشل الصيانة: " + e.message);
-  }
-}
+// استقبال فوري من أي متصفح
+onValue(refTime, snap => {
+  if (!snap.exists()) return;
+  const data = snap.val();
+  current = data.value;
+  direction = data.direction;
+  document.getElementById("value").textContent = current;
+});
 
-/* ========= AGENT 3: WATCHER ========= */
-let lastUpdate = Date.now();
-setInterval(() => {
-  if (Date.now() - lastUpdate > 3000) {
-    heal("انقطاع أو جمود في التحديث");
-  }
-}, 1500);
-
-/* ========= CORE ========= */
-let offsetMinutes = 0;
-
-function subscribe() {
-  onValue(timeRef, snap => {
-    if (!snap.exists()) return;
-    offsetMinutes = snap.val();
-    document.getElementById("offsetInput").value = offsetMinutes;
-    document.getElementById("status").textContent = "⛓️ متزامن";
-    lastUpdate = Date.now();
-  }, err => {
-    logError("❌ Firebase: " + err.message);
-    heal("خطأ اتصال");
+// تحريك مركزي
+window.move = (dir) => {
+  set(refTime, {
+    value: current,
+    direction: dir
   });
-}
-subscribe();
-
-window.applyOffset = () => {
-  const val = Number(offsetInput.value);
-  set(timeRef, val).catch(e => logError("❌ كتابة: " + e.message));
 };
 
-/* ========= RENDER ========= */
+// نبض الحركة (مشترك)
 setInterval(() => {
-  const now = new Date(Date.now() + offsetMinutes * 60000);
-  const h = String(now.getHours()).padStart(2,'0');
-  const m = String(now.getMinutes()).padStart(2,'0');
-  const s = String(now.getSeconds()).padStart(2,'0');
-  document.getElementById("time").textContent = `${h}:${m}:${s}`;
+  if (direction !== 0) {
+    set(refTime, {
+      value: current + direction,
+      direction
+    });
+  }
 }, 1000);
-
-/* ========= GLOBAL TRAPS ========= */
-window.onerror = (m, s, l) => logError(`JS: ${m} (سطر ${l})`);
-window.onunhandledrejection = e => logError("Promise: " + e.reason);
-
 </script>
+
 </body>
 </html>
