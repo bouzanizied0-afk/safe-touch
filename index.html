@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>بوابة الزمن – تجربة أولية</title>
+<title>بوابة الزمن – IT</title>
 <style>
 body {
   background: #000;
@@ -31,31 +31,40 @@ body {
 
 <h1>⏳ بوابة الزمن</h1>
 
-<div id="time">--:--</div>
+<div id="time">--:--:--</div>
 <div id="msg"></div>
 
 <div class="note">
-غيّر وقت هاتفك أو جهازك<br>
-الرسالة تظهر عند 15:00
+غيّر وقت الهاتف كما تشاء<br>
+الزمن هنا غير ليلي ولا نهاري
 </div>
 
 <script>
 function updateTime() {
-  const now = new Date(); // وقت الجهاز
-  const h = now.getHours().toString().padStart(2, '0');
-  const m = now.getMinutes().toString().padStart(2, '0');
+  const now = new Date();
 
-  const timeStr = `${h}:${m}`;
+  // === الزمن المجرد (IT Time) ===
+  let h = now.getHours() % 12;
+  if (h === 0) h = 12; // 12 بدل 0
+
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+
+  const hh = h.toString().padStart(2, '0');
+  const mm = m.toString().padStart(2, '0');
+  const ss = s.toString().padStart(2, '0');
+
+  const timeStr = `${hh}:${mm}:${ss}`;
   document.getElementById("time").textContent = timeStr;
 
-  if (h === "03" && m === "00") {
+  // === شرط الرسالة ===
+  if (hh === "03" && mm === "00") {
     document.getElementById("msg").textContent = "لقد نجحت يا زياد";
   } else {
     document.getElementById("msg").textContent = "";
   }
 }
 
-// تحديث كل ثانية
 setInterval(updateTime, 1000);
 updateTime();
 </script>
