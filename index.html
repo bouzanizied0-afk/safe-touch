@@ -2,87 +2,93 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ بوابة الزمن</title>
+<title>⏳ البوابة الزمنية المركزية</title>
 <style>
-body { background:#000; color:#0f0; font-family: monospace; text-align:center; padding-top:50px; }
-#time { font-size:48px; margin:20px; }
-#msg { font-size:26px; color:#0ff; margin-top:20px; }
-input, button { font-size:18px; padding:6px; margin:5px; }
+body {
+  background:#000;
+  color:#0f0;
+  font-family: monospace;
+  text-align:center;
+  padding-top:50px;
+}
+#time {
+  font-size:48px;
+  margin:20px 0;
+}
+input, button {
+  font-size:18px;
+  padding:6px;
+}
+#status {
+  color:#0ff;
+  margin-top:15px;
+}
 </style>
 </head>
 <body>
 
-<h1>⏳ بوابة الزمن</h1>
+<h1>⏳ البوابة الزمنية</h1>
 <div id="time">--:--:--</div>
-<div id="msg"></div>
 
-<hr style="width:60%;margin:30px auto">
+<div>
+  ⏱️ فرق الدقائق:
+  <input id="offsetInput" type="number" value="0">
+  <button onclick="applyOffset()">تطبيق</button>
+</div>
 
-<h3>تعديل الزمن المركزي</h3>
-<input type="number" id="offset" placeholder="دقائق (+ / -)">
-<button onclick="setOffset()">تطبيق</button>
+<div id="status">في انتظار المزامنة...</div>
 
-<!-- Firebase CDN -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-<script>
-// إعداد Firebase (استبدل بالقيم من مشروعك)
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
   databaseURL: "https://setouchi-it-default-rtdb.firebaseio.com",
   projectId: "setouchi-it",
-  storageBucket: "setouchi-it.firebasestorage.app",
+  storageBucket: "setouchi-it.appspot.com",
   messagingSenderId: "456612217542",
   appId: "1:456612217542:web:51d963523b1306e0bf4dc7"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const timeRef = db.ref("it_time");
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const timeRef = ref(db, "portalTime");
 
-// قيم افتراضية
 let offsetMinutes = 0;
-let message = "لقد نجحت يا زياد";
 
-// قراءة الوقت المركزي
-timeRef.on("value", snap => {
-  if(!snap.exists()) return;
+// الاستماع المركزي (هذا هو القلب)
+onValue(timeRef, snap => {
+  if (!snap.exists()) return;
   const data = snap.val();
   offsetMinutes = data.offsetMinutes || 0;
-  message = data.message || "";
+  document.getElementById("offsetInput").value = offsetMinutes;
+  document.getElementById("status").textContent = "⛓️ متزامن مع البوابة";
 });
 
-// تحديث الساعة
-function updateClock(){
+// تحديث العرض فقط (لا كتابة)
+function renderTime() {
   const now = new Date();
-  const adjusted = new Date(now.getTime() + offsetMinutes*60000);
+  const adjusted = new Date(now.getTime() + offsetMinutes * 60000);
 
   const h = adjusted.getHours().toString().padStart(2,'0');
   const m = adjusted.getMinutes().toString().padStart(2,'0');
   const s = adjusted.getSeconds().toString().padStart(2,'0');
 
   document.getElementById("time").textContent = `${h}:${m}:${s}`;
-
-  if(h==="03" && m==="00"){
-    document.getElementById("msg").textContent = message;
-  } else {
-    document.getElementById("msg").textContent = "";
-  }
 }
+setInterval(renderTime, 1000);
 
-setInterval(updateClock,1000);
-updateClock();
-
-// تعديل الزمن المركزي
-function setOffset(){
-  const val = Number(document.getElementById("offset").value);
-  timeRef.set({
+// الكتابة الوحيدة (تغيّر الجميع)
+window.applyOffset = function () {
+  const val = Number(document.getElementById("offsetInput").value);
+  set(timeRef, {
     offsetMinutes: val,
-    message: "لقد نجحت يا زياد"
+    updatedAt: Date.now()
   });
-}
+};
 </script>
+
 </body>
 </html>
