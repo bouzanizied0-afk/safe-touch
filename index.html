@@ -2,113 +2,118 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>بوابة الزمن – تجربة أولية</title>
+<title>بوابة الزمن – تجربة موزعة</title>
 <style>
-body {
-  background: #000;
-  color: #0f0;
-  font-family: monospace;
-  text-align: center;
-  padding-top: 60px;
-}
-#time {
-  font-size: 48px;
-  margin: 20px 0;
-}
-#msg {
-  font-size: 28px;
-  color: #0ff;
-  margin-top: 30px;
-}
-.note {
-  color: #888;
-  font-size: 14px;
-  margin-top: 40px;
-}
-input, button {
-  font-family: monospace;
-  font-size: 16px;
-  padding: 5px 10px;
-  margin: 5px;
-  border-radius: 3px;
-}
+  body {
+    background: #000;
+    color: #0f0;
+    font-family: monospace;
+    text-align: center;
+    padding: 40px;
+  }
+  #time {
+    font-size: 48px;
+    margin: 20px 0;
+  }
+  #msg {
+    font-size: 28px;
+    color: #0ff;
+    margin-top: 30px;
+  }
+  input {
+    font-size: 16px;
+    width: 60px;
+    text-align: center;
+  }
+  button {
+    font-size: 16px;
+    margin-left: 10px;
+    padding: 5px 10px;
+  }
+  .note {
+    color: #888;
+    font-size: 14px;
+    margin-top: 40px;
+  }
 </style>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
-<h1>⏳ بوابة الزمن</h1>
+<h1>⏳ بوابة الزمن الموزعة</h1>
 
-<div id="time">--:--</div>
+<div id="time">--:--:--</div>
 <div id="msg"></div>
 
 <div>
-  <input type="number" id="offsetInput" placeholder="Offset بالدقائق">
-  <button onclick="updateOffset()">تعديل الزمن</button>
+  تعديل الوقت (Offset بالدقائق): 
+  <input type="number" id="offsetInput" value="0">
+  <button onclick="updateOffset()">تطبيق</button>
 </div>
 
 <div class="note">
-الوقت يُستمد من الخادم الزمني<br>
-الرسالة تظهر عند 03:00
+  أي تغيير هنا يظهر على جميع المتصفحات فورًا
 </div>
 
 <script>
-const SERVER_URL = "http://YOUR_SERVER_IP:3000/time"; // ضع هنا IP أو localhost إذا محلي
+  // ======== إعداد Firebase ========
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "YOUR_DATABASE_URL",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
 
-let offsetMinutes = 0;
-let message = "";
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-// جلب الوقت من الخادم
-async function fetchTimeFromServer() {
-  try {
-    const res = await fetch(SERVER_URL + "?" + Date.now());
-    const data = await res.json();
-    offsetMinutes = data.offsetMinutes;
-    message = data.message;
-  } catch(e) {
-    console.error("خطأ في الاتصال بالخادم:", e);
+  const offsetRef = db.ref('temporalGateway/offsetMinutes');
+  const messageRef = db.ref('temporalGateway/message');
+
+  let offsetMinutes = 0;
+  let messageText = "لقد نجحت يا زياد";
+
+  // ======== قراءة البيانات عند التغيير ========
+  offsetRef.on('value', snapshot => {
+    offsetMinutes = snapshot.val() || 0;
+    document.getElementById('offsetInput').value = offsetMinutes;
+  });
+
+  messageRef.on('value', snapshot => {
+    messageText = snapshot.val() || "";
+  });
+
+  // ======== تحديث الوقت ========
+  function updateTime() {
+    const now = new Date();
+    const adjusted = new Date(now.getTime() + offsetMinutes * 60000);
+
+    const h = adjusted.getHours().toString().padStart(2,'0');
+    const m = adjusted.getMinutes().toString().padStart(2,'0');
+    const s = adjusted.getSeconds().toString().padStart(2,'0');
+
+    document.getElementById('time').textContent = `${h}:${m}:${s}`;
+
+    if(h === "03" && m === "00"){
+      document.getElementById('msg').textContent = messageText;
+    } else {
+      document.getElementById('msg').textContent = "";
+    }
   }
-}
 
-// تحديث الوقت في الصفحة
-function updateTime() {
-  const now = new Date();
-  const adjusted = new Date(now.getTime() + offsetMinutes * 60000);
+  setInterval(updateTime, 1000);
 
-  const h = adjusted.getHours().toString().padStart(2,'0');
-  const m = adjusted.getMinutes().toString().padStart(2,'0');
-
-  document.getElementById("time").textContent = `${h}:${m}`;
-
-  if(h === "03" && m === "00") {
-    document.getElementById("msg").textContent = message;
-  } else {
-    document.getElementById("msg").textContent = "";
+  // ======== تعديل Offset من المستخدم ========
+  function updateOffset(){
+    const val = parseInt(document.getElementById('offsetInput').value) || 0;
+    offsetRef.set(val);
   }
-}
 
-// تعديل offset عبر الخادم
-async function updateOffset() {
-  const offset = Number(document.getElementById('offsetInput').value);
-  try {
-    await fetch(SERVER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ offsetMinutes: offset })
-    });
-    await fetchTimeFromServer(); // تحديث محلي بعد تعديل الخادم
-  } catch(e) {
-    console.error("خطأ في تعديل الخادم:", e);
-  }
-}
-
-// التحديث التلقائي كل ثانية
-setInterval(async () => {
-  await fetchTimeFromServer();
-  updateTime();
-}, 1000);
-
-fetchTimeFromServer();
-updateTime();
 </script>
 
 </body>
