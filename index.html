@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ Temporal Chat + Full Media + Encoder</title>
+<title>⏳ Temporal Chat Final + Full Media</title>
 <style>
 body {
   background:#000;
@@ -20,7 +20,7 @@ body {
   color:#ff0;
   margin:20px auto;
   width:80%;
-  max-height:400px;
+  max-height:500px;
   overflow-y:auto;
   text-align:left;
 }
@@ -46,7 +46,7 @@ img, video {
 </head>
 <body>
 
-<h2>⏳ دردشة بوابة الزمن مع وسائط كاملة</h2>
+<h2>⏳ بوابة الزمن – دردشة كاملة</h2>
 
 <div id="minute">1</div>
 <div id="chat"></div>
@@ -105,24 +105,21 @@ request.onsuccess = e => {
 // ===== العداد الدوري للعرض 1→10 =====
 let tick = 1;
 const minuteDiv = document.getElementById("minute");
-
 setInterval(()=>{
   tick++;
   if(tick>10) tick=1;
   minuteDiv.textContent = tick;
-},600); // العداد للعرض فقط
+},600);
 
-// ===== إرسال نص مباشر مع تخزينه محليًا وبحجز كل حرف للنانو =====
+// ===== إرسال نصوص مع تخزينها وحجز كل حرف للنانو =====
 window.sendMessage = ()=>{
   const text = input.value.trim();
   if(!text) return;
   const nano = Date.now();
 
-  // إرسال الرسالة للخادم
   push(chatRef, {type:'text', text, nano});
   storeMessageLocal({type:'text', text, nano});
 
-  // حجز كل حرف للنانو
   for(const char of text){
     reserveChar(char);
   }
@@ -130,7 +127,7 @@ window.sendMessage = ()=>{
   input.value="";
 };
 
-// ===== إرسال ملف مباشر مع تخزينه محليًا =====
+// ===== إرسال ملفات مباشرة =====
 window.sendFile = ()=>{
   const fileInput = document.createElement("input");
   fileInput.type="file";
@@ -138,7 +135,7 @@ window.sendFile = ()=>{
     const file = e.target.files[0];
     if(!file) return;
 
-    const chunkSize = 5*1024*1024; // 5 ميغا لكل chunk
+    const chunkSize = 5*1024*1024; // تقسيم داخلي 5 ميغا
     let offset = 0;
 
     while(offset < file.size){
