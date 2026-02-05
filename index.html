@@ -20,6 +20,14 @@ body {
   color:#ff0;
   margin-top:10px;
 }
+#lettersLog {
+  margin-top:20px;
+  text-align:left;
+  max-height:300px;
+  overflow-y:auto;
+  border-left:3px solid #0f0;
+  padding-left:10px;
+}
 button {
   font-size:18px;
   padding:10px 20px;
@@ -40,10 +48,13 @@ button {
 <button onclick="changeMinute(1)">➕ دقيقة</button>
 <button onclick="changeMinute(-1)">➖ دقيقة</button>
 
+<h3>سجل الحروف المحلي:</h3>
+<div id="lettersLog"></div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { decodeMinute } from "./time-decode.js"; // ✅ ربط الملف
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { decodeMinute } from "./time-decode.js"; // ✅ ربط ملف الترجمة
 
 // 🔐 إعداد Firebase
 const firebaseConfig = {
@@ -58,7 +69,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const timeRef = ref(db, "temporal/minute");
+const timeRef = ref(db, "temporal/minute");       // لإرسال النسخ الجديدة
+const eventsRef = ref(db, "temporal/events");     // سجل الأحداث الجديد في الخادم
 
 // الحالة المحلية
 let currentMinute = 0;
@@ -68,18 +80,33 @@ onValue(timeRef, snap => {
   if (!snap.exists()) return;
   currentMinute = snap.val();
   document.getElementById("minute").textContent = currentMinute;
-
-  // 🧠 الترجمة باستخدام time-decode.js
   document.getElementById("letter").textContent = decodeMinute(currentMinute);
 });
 
-// ⏱️ تغيير الزمن (إرسال فقط زمن)
+// ⏱️ تغيير الزمن (إرسال نسخة جديدة بدل تحديث)
 window.changeMinute = (delta) => {
   let next = currentMinute + delta;
   if (next < 0) next = 59;
   if (next > 59) next = 0;
 
-  set(timeRef, next);
+  // ✅ إرسال الرقم كنسخة جديدة في الخادم (push)
+  push(eventsRef, {
+    minute: next,
+    timestamp: Date.now()
+  });
+
+  // تحديث الوقت الحالي محليًا حتى يظهر في المتصفح مباشرة
+  currentMinute = next;
+  document.getElementById("minute").textContent = currentMinute;
+
+  // إضافة حرف جديد في السجل المحلي
+  const letter = decodeMinute(next);
+  if (letter !== "---") {
+    const entry = document.createElement("div");
+    entry.textContent = letter + " ⏱️ " + new Date().toLocaleTimeString();
+    document.getElementById("lettersLog").appendChild(entry);
+    document.getElementById("lettersLog").scrollTop = document.getElementById("lettersLog").scrollHeight;
+  }
 };
 </script>
 
