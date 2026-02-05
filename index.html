@@ -64,7 +64,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const timeRef = ref(db, "temporal/minute");
-const lettersRef = ref(db, "temporal/letters"); // لتخزين الحروف
+const lettersRef = ref(db, "temporal/letters");
 
 // ⚙️ تهيئة الترميز
 initEncoder(db, "temporal/nano");
@@ -102,11 +102,13 @@ window.changeMinute = (delta) => {
   if (next < 0) next = 59;
   if (next > 59) next = 0;
 
+  // تحديث الدقيقة على الخادم
   set(timeRef, next);
 
+  // ترميز الحرف إذا وُجد
   const letter = decodeMinute(next);
   if (letter !== '—') {
-    reserveChar(letter); // حجز الحرف محليًا في الطابور للنانو
+    reserveChar(letter); // حجز الحرف محليًا للطابور
   }
 };
 
