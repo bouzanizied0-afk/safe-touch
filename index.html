@@ -15,18 +15,13 @@ body {
   font-size:64px;
   margin:20px;
 }
-#letter {
+#letters {
   font-size:48px;
   color:#ff0;
   margin-top:10px;
-}
-#lettersLog {
-  margin-top:20px;
+  text-align:left;
   max-height:200px;
   overflow-y:auto;
-  border-left:3px solid #0f0;
-  padding-left:10px;
-  text-align:left;
 }
 button {
   font-size:18px;
@@ -35,10 +30,6 @@ button {
   background:#003300;
   color:#0f0;
   border:1px solid #0f0;
-  cursor:pointer;
-}
-button:hover {
-  background:#005500;
 }
 </style>
 </head>
@@ -47,24 +38,21 @@ button:hover {
 <h2>⏳ القناة الزمنية</h2>
 
 <div id="minute">--</div>
-<div id="letter">---</div>
+<div id="letters">---</div>
 
 <button onclick="changeMinute(1)">➕ دقيقة</button>
 <button onclick="changeMinute(-1)">➖ دقيقة</button>
 
-<h3>سجل الحروف:</h3>
-<div id="lettersLog"></div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { decodeMinute } from "./time-decode.js"; // الملف الخارجي للترجمة
+import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { decodeMinute } from "./time-decode.js"; // ملفك السابق
 
-// 🔐 إعداد Firebase
+// 🔐 إعداد Firebase مع الرابط الصحيح
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
-  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app",
+  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app/", // ✅ الرابط الصحيح
   projectId: "setouchi-it",
   storageBucket: "setouchi-it.appspot.com",
   messagingSenderId: "456612217542",
@@ -74,44 +62,51 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const timeRef = ref(db, "temporal/minute");
+const lettersRef = ref(db, "temporal/letters"); // لتخزين الحروف المتعددة
 
 // الحالة المحلية
 let currentMinute = 0;
 
-// 🔄 استقبال الوقت فورياً من الخادم
+// 🔄 استقبال فوري من الخادم
 onValue(timeRef, snap => {
   if (!snap.exists()) return;
   currentMinute = snap.val();
   document.getElementById("minute").textContent = currentMinute;
-
-  // عرض الحرف الحالي حسب الوقت
-  document.getElementById("letter").textContent = decodeMinute(currentMinute);
 });
 
-// ⏱️ تغيير الزمن وإرسال الرقم + تخزين الحروف الجديدة محلياً
+// 🔄 استقبال الحروف المخزنة
+onValue(lettersRef, snap => {
+  const lettersDiv = document.getElementById("letters");
+  lettersDiv.innerHTML = ''; // مسح المحتوى الحالي
+  if (snap.exists()) {
+    const lettersObj = snap.val();
+    Object.values(lettersObj).forEach(item => {
+      const div = document.createElement('div');
+      div.textContent = item.letter;
+      lettersDiv.appendChild(div);
+    });
+  } else {
+    lettersDiv.textContent = '---';
+  }
+});
+
+// ⏱️ تغيير الزمن (إرسال فقط زمن)
 window.changeMinute = (delta) => {
   let next = currentMinute + delta;
   if (next < 0) next = 59;
   if (next > 59) next = 0;
 
-  // ✅ تحديث الوقت في الخادم كما هو
+  // إرسال الرقم للخادم
   set(timeRef, next);
 
-  // ✅ تحديث الوقت محليًا فورًا
-  currentMinute = next;
-  document.getElementById("minute").textContent = currentMinute;
-
-  // ✅ إضافة حرف جديد في السجل المحلي إذا كان له ترجمة
+  // إذا كان الرقم يطابق الحرف، أضف الحرف في القناة الزمنية
   const letter = decodeMinute(next);
-  if (letter !== "---") {
-    const entry = document.createElement("div");
-    entry.textContent = letter + " ⏱️ " + new Date().toLocaleTimeString();
-    document.getElementById("lettersLog").appendChild(entry);
-    document.getElementById("lettersLog").scrollTop = document.getElementById("lettersLog").scrollHeight;
+  if (letter !== '—') {
+    push(lettersRef, {
+      letter,
+      timestamp: Date.now()
+    });
   }
-
-  // تحديث عرض الحرف الحالي
-  document.getElementById("letter").textContent = letter;
 };
 </script>
 
