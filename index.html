@@ -37,19 +37,18 @@ button {
 
 <h2>⏳ القناة الزمنية مع الترميز والعداد</h2>
 
-<div id="minute">--</div>
+<!-- 🔢 العداد الدوري -->
+<div id="minute">1</div>
+
 <div id="letters">---</div>
 <div id="letter-display"></div>
 
-<button onclick="changeMinute(1)">➕ دقيقة</button>
-<button onclick="changeMinute(-1)">➖ دقيقة</button>
 <button onclick="reserveLetterPrompt()">💾 حجز حرف</button>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { decodeMinute } from "./time-decode.js";
-import { initEncoder, reserveChar, startTicker } from "./time-encoder.js"; 
+import { initEncoder, reserveChar, startTicker } from "./time-encoder.js";
 
 // 🔐 إعداد Firebase
 const firebaseConfig = {
@@ -64,55 +63,26 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const timeRef = ref(db, "temporal/minute");
-const lettersRef = ref(db, "temporal/letters"); 
 
-// ⚙️ تهيئة الترميز والعداد
+// ⚙️ تهيئة الترميز
 initEncoder(db, "temporal/nano");
 startTicker();
 
-// الحالة المحلية
-let currentMinute = 0;
+/* ===========================
+   🔁 العداد الدوري 1 → 10
+   =========================== */
+let tick = 1;
+const minuteDiv = document.getElementById("minute");
 
-// 🔄 استقبال الوقت
-onValue(timeRef, snap => {
-  if (!snap.exists()) return;
-  currentMinute = snap.val();
-  document.getElementById("minute").textContent = currentMinute;
-});
+setInterval(() => {
+  tick++;
+  if (tick > 10) tick = 1;
+  minuteDiv.textContent = tick;
+}, 500); // سرعة العداد (يمكنك تعديلها)
 
-// 🔄 استقبال الحروف المخزنة
-onValue(lettersRef, snap => {
-  const lettersDiv = document.getElementById("letters");
-  lettersDiv.innerHTML = '';
-  if (snap.exists()) {
-    const lettersObj = snap.val();
-    Object.values(lettersObj).forEach(item => {
-      const div = document.createElement('div');
-      div.textContent = item.letter;
-      lettersDiv.appendChild(div);
-    });
-  } else {
-    lettersDiv.textContent = '---';
-  }
-});
-
-// ⏱️ تغيير الزمن (إرسال فقط زمن)
-window.changeMinute = (delta) => {
-  let next = currentMinute + delta;
-  if (next < 0) next = 59;
-  if (next > 59) next = 0;
-
-  // إرسال الرقم للخادم
-  set(timeRef, next);
-
-  const letter = decodeMinute(next);
-  if (letter !== '—') {
-    reserveChar(letter); // حجز الحرف في الطابور للعداد
-  }
-};
-
-// 💾 حجز حرف يدوي
+/* ===========================
+   💾 حجز حرف يدوي
+   =========================== */
 window.reserveLetterPrompt = () => {
   const input = prompt("أدخل الحرف للحجز:");
   if (input && input.length === 1) {
