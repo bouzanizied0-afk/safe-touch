@@ -15,7 +15,7 @@ body {
   font-size:64px;
   margin:20px;
 }
-#letters {
+#letters, #letter-display {
   font-size:48px;
   color:#ff0;
   margin-top:10px;
@@ -35,10 +35,11 @@ button {
 </head>
 <body>
 
-<h2>⏳ القناة الزمنية مع الترميز</h2>
+<h2>⏳ القناة الزمنية مع الترميز والعداد</h2>
 
 <div id="minute">--</div>
 <div id="letters">---</div>
+<div id="letter-display"></div>
 
 <button onclick="changeMinute(1)">➕ دقيقة</button>
 <button onclick="changeMinute(-1)">➖ دقيقة</button>
@@ -46,9 +47,9 @@ button {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { decodeMinute } from "./time-decode.js";
-import { initEncoder, reserveChar, startTicker } from "./time-encoder.js"; // ملف الترميز
+import { initEncoder, reserveChar, startTicker } from "./time-encoder.js"; 
 
 // 🔐 إعداد Firebase
 const firebaseConfig = {
@@ -64,9 +65,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const timeRef = ref(db, "temporal/minute");
-const lettersRef = ref(db, "temporal/letters");
+const lettersRef = ref(db, "temporal/letters"); 
 
-// ⚙️ تهيئة الترميز
+// ⚙️ تهيئة الترميز والعداد
 initEncoder(db, "temporal/nano");
 startTicker();
 
@@ -102,17 +103,16 @@ window.changeMinute = (delta) => {
   if (next < 0) next = 59;
   if (next > 59) next = 0;
 
-  // تحديث الدقيقة على الخادم
+  // إرسال الرقم للخادم
   set(timeRef, next);
 
-  // ترميز الحرف إذا وُجد
   const letter = decodeMinute(next);
   if (letter !== '—') {
-    reserveChar(letter); // حجز الحرف محليًا للطابور
+    reserveChar(letter); // حجز الحرف في الطابور للعداد
   }
 };
 
-// 💾 حجز حرف يدوياً عبر prompt
+// 💾 حجز حرف يدوي
 window.reserveLetterPrompt = () => {
   const input = prompt("أدخل الحرف للحجز:");
   if (input && input.length === 1) {
