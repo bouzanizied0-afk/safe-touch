@@ -43,6 +43,7 @@ button {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { decodeMinute } from "./time-decode.js"; // ✅ ربط الملف
 
 // 🔐 إعداد Firebase
 const firebaseConfig = {
@@ -68,12 +69,8 @@ onValue(timeRef, snap => {
   currentMinute = snap.val();
   document.getElementById("minute").textContent = currentMinute;
 
-  // 🧠 الترجمة الزمنية
-  if (currentMinute === 4) {
-    document.getElementById("letter").textContent = "ف";
-  } else {
-    document.getElementById("letter").textContent = "---";
-  }
+  // 🧠 الترجمة باستخدام time-decode.js
+  document.getElementById("letter").textContent = decodeMinute(currentMinute);
 });
 
 // ⏱️ تغيير الزمن (إرسال فقط زمن)
