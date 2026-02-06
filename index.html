@@ -59,8 +59,6 @@ img, video {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { initTranslator } from "./simple-translator.js";
 
 // إعداد Firebase
@@ -73,6 +71,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// تفعيل المترجم
+initTranslator(db);
 // تفعيل المترجم
 initTranslator(db);
 // 🔐 إعداد Firebase
