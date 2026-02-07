@@ -54,7 +54,6 @@ img, video {
 <input id="messageInput" placeholder="اكتب رسالتك هنا">
 <button onclick="sendMessage()">إرسال نص</button>
 <button onclick="sendFile()">إرسال ملف</button>
-<button id="clearBtn">🗑 حذف كل الرسائل والملفات</button>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -182,7 +181,7 @@ function displayMessages(){
       cursor.continue();
     }
   };
-   
+
   const ftx=dbIndexed.transaction("files","readonly");
   const fstore=ftx.objectStore("files");
   fstore.openCursor().onsuccess=e=>{
@@ -224,22 +223,8 @@ function storeFileLocal(file){
 function loadLocalMessages(){
   displayMessages();
 }
-document.getElementById("clearBtn").addEventListener("click", ()=> {
-  if(!dbIndexed) return;
-  
-  // حذف الرسائل
-  const txMsg = dbIndexed.transaction("messages","readwrite");
-  txMsg.objectStore("messages").clear();
 
-  // حذف الملفات
-  const txFiles = dbIndexed.transaction("files","readwrite");
-  txFiles.objectStore("files").clear();
-
-  // مسح واجهة المستخدم فوراً
-  document.getElementById("chat").innerHTML = "";
-});
 </script>
 
 </body>
 </html>
-
