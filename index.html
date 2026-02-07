@@ -2,15 +2,17 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Test Firebase Counter</title>
+<title>تجربة الاتصال بالخادم</title>
 </head>
 <body>
+<h2>اختبار عداد متصل بالخادم</h2>
 <div id="counter">0</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// ===== إعداد Firebase =====
+// إعداد Firebase (استعمل الرابط الذي أعطيتني)
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
@@ -23,17 +25,23 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ===== مسار العداد =====
+// مرجع العداد
 const counterRef = ref(db, "test/counter");
-let count = 0;
 const counterDiv = document.getElementById("counter");
 
-// ===== تحديث العداد كل ثانية وإرساله للخادم =====
-setInterval(()=>{
+let count = 0;
+
+// إرسال العداد للخادم كل ثانية
+setInterval(() => {
   count++;
   counterDiv.textContent = count;
-  push(counterRef, {value: count, nano: Date.now()});
+  push(counterRef, { value: count, time: Date.now() });
 }, 1000);
+
+// استماع لتحديثات العداد من الخادم
+onValue(counterRef, snap => {
+  console.log("التحديث من الخادم:", snap.val());
+});
 </script>
 </body>
 </html>
