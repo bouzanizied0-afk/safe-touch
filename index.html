@@ -162,8 +162,33 @@ window.sendFile = ()=>{
 };
 
 // ===== استقبال الرسائل من الخادم =====
-onValue(chatRef,snap=>{displayMessages();});
-onValue(filesRef,snap=>{displayMessages();});
+// ===== استقبال وتخزين الرسائل من الخادم =====
+onValue(chatRef, snap => {
+  if (!snap.exists() || !dbIndexed) return;
+
+  const data = snap.val();
+  Object.values(data).forEach(msg => {
+    if (msg.nano) {
+      storeMessageLocal(msg);
+    }
+  });
+
+  displayMessages();
+});
+
+// ===== استقبال وتخزين الملفات من الخادم =====
+onValue(filesRef, snap => {
+  if (!snap.exists() || !dbIndexed) return;
+
+  const data = snap.val();
+  Object.values(data).forEach(file => {
+    if (file.nano) {
+      storeFileLocal(file);
+    }
+  });
+
+  displayMessages();
+});
 
 // ===== عرض الرسائل والملفات =====
 function displayMessages(){
@@ -242,4 +267,3 @@ document.getElementById("clearBtn").addEventListener("click", ()=> {
 
 </body>
 </html>
-
