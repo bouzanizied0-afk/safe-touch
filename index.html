@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ Temporal Counter</title>
+<title>⏳ Temporal Chat + Full Media</title>
 <style>
 body {
   background:#000;
@@ -15,16 +15,35 @@ body {
   font-size:64px;
   margin:20px;
 }
+input[type=text] {
+  width:50%;
+  font-size:18px;
+  padding:8px;
+}
+button {
+  font-size:16px;
+  padding:8px 16px;
+  margin:5px;
+  background:#003300;
+  color:#0f0;
+  border:1px solid #0f0;
+}
 </style>
 </head>
 <body>
 
-<h2>⏳ عداد الزمن المباشر</h2>
+<h2>⏳ Temporal Chat مع عداد على الخادم</h2>
+
 <div id="minute">1</div>
+
+<input id="messageInput" placeholder="اكتب رسالتك هنا">
+<button onclick="sendMessage()">إرسال نص</button>
+<button onclick="sendFile()">إرسال ملف</button>
+<button id="clearBtn">🗑 حذف كل الرسائل والملفات</button>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // 🔐 إعداد Firebase
 const firebaseConfig = {
@@ -36,24 +55,41 @@ const firebaseConfig = {
   messagingSenderId: "456612217542",
   appId: "1:456612217542:web:51d963523b1306e0bf4dc7"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const counterRef = ref(db, "temporal/counter"); // هذا المسار سيظهر في الخادم
+const counterRef = ref(db, "temporal/counter"); // العداد على الخادم
 
-// ===== العداد الدوري 1 → 10 =====
+// ===== العداد الدوري 1→10 مرتبط بالخادم =====
 let tick = 1;
 const minuteDiv = document.getElementById("minute");
 
-setInterval(() => {
+setInterval(()=>{
   tick++;
-  if (tick > 10) tick = 1;
+  if(tick>10) tick=1;
   minuteDiv.textContent = tick;
 
-  // إرسال العداد مباشرة إلى الخادم
+  // تحديث العداد في الخادم
   set(counterRef, tick);
-}, 600);
+}, 1000); // كل ثانية
 
+// ===== إرسال نصوص وهمية (محلي فقط) =====
+window.sendMessage = ()=>{
+  const input = document.getElementById("messageInput");
+  const text = input.value.trim();
+  if(!text) return;
+  alert("تم إرسال نص (محلي فقط): " + text);
+  input.value="";
+};
+
+// ===== إرسال ملفات وهمية (محلي فقط) =====
+window.sendFile = ()=>{
+  alert("تم إرسال ملف (محلي فقط).");
+};
+
+// ===== مسح الرسائل الوهمية =====
+document.getElementById("clearBtn").addEventListener("click", ()=> {
+  alert("تم مسح الرسائل الوهمية.");
+});
 </script>
 
 </body>
