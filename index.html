@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ Temporal Chat + Full Media</title>
+<title>⏳ Temporal Chat مع عداد على الخادم</title>
 <style>
 body {
   background:#000;
@@ -43,13 +43,14 @@ button {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { writeMinute } from "./time-store.js";
 
 // 🔐 إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
-  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app/",
+  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "setouchi-it",
   storageBucket: "setouchi-it.appspot.com",
   messagingSenderId: "456612217542",
@@ -57,7 +58,6 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const counterRef = ref(db, "temporal/counter"); // العداد على الخادم
 
 // ===== العداد الدوري 1→10 مرتبط بالخادم =====
 let tick = 1;
@@ -69,7 +69,8 @@ setInterval(()=>{
   minuteDiv.textContent = tick;
 
   // تحديث العداد في الخادم
-  set(counterRef, tick);
+  writeMinute(tick);
+
 }, 1000); // كل ثانية
 
 // ===== إرسال نصوص وهمية (محلي فقط) =====
