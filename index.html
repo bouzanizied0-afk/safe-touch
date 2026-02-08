@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ Temporal Chat + Full Media</title>
+<title>⏳ Temporal Chat مع عداد على الخادم</title>
 <style>
 body {
   background:#000;
@@ -42,14 +42,15 @@ button {
 <button id="clearBtn">🗑 حذف كل الرسائل والملفات</button>
 
 <script type="module">
+// ===== استيراد Firebase =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// 🔐 إعداد Firebase
+// ===== إعداد Firebase =====
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
-  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app/",
+  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "setouchi-it",
   storageBucket: "setouchi-it.appspot.com",
   messagingSenderId: "456612217542",
@@ -57,22 +58,32 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const counterRef = ref(db, "temporal/counter"); // العداد على الخادم
 
-// ===== العداد الدوري 1→10 مرتبط بالخادم =====
-let tick = 1;
+// ===== المسار المشترك للعداد على الخادم =====
+const counterRef = ref(db, "temporal/counter");
+
+// ===== واجهة العداد =====
 const minuteDiv = document.getElementById("minute");
+let tick = 1;
 
+// ===== تحديث العداد وإرساله للخادم =====
 setInterval(()=>{
   tick++;
   if(tick>10) tick=1;
   minuteDiv.textContent = tick;
 
-  // تحديث العداد في الخادم
+  // إرسال العداد للخادم
   set(counterRef, tick);
-}, 1000); // كل ثانية
+}, 1000);
 
-// ===== إرسال نصوص وهمية (محلي فقط) =====
+// ===== الاستماع للتغييرات من أي متصفح آخر =====
+onValue(counterRef, snap => {
+  if(!snap.exists()) return;
+  tick = snap.val();
+  minuteDiv.textContent = tick;
+});
+
+// ===== خانة كتابة النصوص =====
 window.sendMessage = ()=>{
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
@@ -81,7 +92,7 @@ window.sendMessage = ()=>{
   input.value="";
 };
 
-// ===== إرسال ملفات وهمية (محلي فقط) =====
+// ===== خانة إرسال ملفات وهمية =====
 window.sendFile = ()=>{
   alert("تم إرسال ملف (محلي فقط).");
 };
