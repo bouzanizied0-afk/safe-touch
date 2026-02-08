@@ -2,70 +2,34 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Firebase Text Test</title>
-<style>
-body {
-  background:#000;
-  color:#0f0;
-  font-family: monospace;
-  padding:20px;
-}
-input {
-  font-size:20px;
-  padding:5px;
-}
-#log {
-  margin-top:20px;
-  white-space:pre-wrap;
-}
-</style>
+<title>Blind Server Test</title>
 </head>
 <body>
 
-<h3>اختبار كتابة → Firebase</h3>
-
-<input id="txt" placeholder="اكتب حرفًا أو كلمة">
-<div id="log"></div>
+<h1 id="tick">0</h1>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// إعداد Firebase
-const firebaseConfig = {
+const app = initializeApp({
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
-  authDomain: "setouchi-it.firebaseapp.com",
-  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "setouchi-it"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-// مسار واضح وصريح
-const textRef = ref(db, "test/text");
-
-// إرسال عند كل كتابة
-const input = document.getElementById("txt");
-input.addEventListener("input", () => {
-  const value = input.value.trim();
-  if (!value) return;
-
-  push(textRef, {
-    text: value,
-    time: Date.now()
-  });
+  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app"
 });
 
-// الاستماع لما في الخادم
-const log = document.getElementById("log");
-onValue(textRef, snap => {
-  log.textContent = "";
-  if (!snap.exists()) return;
+const db = getDatabase(app);
+const tickRef = ref(db, "time/tick");
 
-  Object.values(snap.val()).forEach(item => {
-    log.textContent += item.text + "\n";
-  });
+// إرسال عداد
+setInterval(() => {
+  set(tickRef, Date.now());
+}, 1000);
+
+// استقبال العداد
+onValue(tickRef, snap => {
+  if (snap.exists()) {
+    document.getElementById("tick").textContent = snap.val();
+  }
 });
 </script>
 
