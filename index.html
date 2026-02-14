@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⏳ Temporal Pulse - Pro Edition</title>
+    <title>⏳ Temporal Pulse - Binary Stream</title>
     <style>
         body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 10px; margin: 0; }
         #global-tick { font-size: 40px; color: #0f0; text-shadow: 0 0 10px #0f0; margin: 10px; }
@@ -22,27 +22,26 @@
         button:hover { background: #00ff00; color: #000; }
         .del-btn { border-color: #500; color: #f00; }
         img { max-width: 250px; border: 1px solid #0f0; margin: 10px 0; display: block; }
-        .pulse-meta { font-size: 10px; color: #444; }
     </style>
 </head>
 <body>
 
-    <div id="status">جاري مزامنة البوابة الهندسية...</div>
+    <div id="status">مزامنة الترددات الهندسية...</div>
     <div id="global-tick">0</div>
 
     <div id="chat-display"></div>
 
     <div class="input-area">
-        <input type="text" id="userInput" placeholder="أدخل البيانات لتشفيرها ونشرها كنبضات...">
+        <input type="text" id="userInput" placeholder="بث نبضات رقمية عبر الفجوة والتدفق...">
         <br>
-        <button id="sendBtn">إرسال نص (Chunked + Gap)</button>
-        <button id="fileBtn">رفع ملف (Raw Binary)</button>
+        <button id="sendBtn">بث تردد 1001</button>
+        <button id="fileBtn">بث تردد 465586</button>
         <button id="clearBtn" class="del-btn">تصفير السيرفر</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, push, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
@@ -57,139 +56,128 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const syncRef = ref(db, "time/sync");
-        const pulseRef = ref(db, "temporal/v2_pulses");
-        const heartbeatRef = ref(db, "temporal/heartbeat"); // مسار العداد الدوري
+        const streamRef = ref(db, "temporal/stream");
+        const heartbeatRef = ref(db, "temporal/heartbeat");
 
         const machineEncoder = new TextEncoder();
         const machineDecoder = new TextDecoder();
 
-        // --- 1. نظام العداد الدوري والحذف (Logic Gap) ---
+        // --- 1. ضغط البيانات (لتقليص الملفات) ---
+        async function compressData(data) {
+            const stream = new Blob([data]).stream();
+            const compressedStream = stream.pipeThrough(new CompressionStream("gzip"));
+            const response = new Response(compressedStream);
+            return new Uint8Array(await response.arrayBuffer());
+        }
+
+        async function decompressData(data) {
+            const stream = new Blob([data]).stream();
+            const decompressedStream = stream.pipeThrough(new DecompressionStream("gzip"));
+            const response = new Response(decompressedStream);
+            return new Uint8Array(await response.arrayBuffer());
+        }
+
+        // --- 2. العداد والنبض (Gap Logic) ---
         let counter = 1;
         let suppressedValue = null;
         let currentTick = 0;
 
-        // مزامنة العداد العام
         onValue(syncRef, snap => { if(snap.exists()) currentTick = snap.val(); document.getElementById("global-tick").textContent = currentTick; });
         setInterval(() => { set(syncRef, (currentTick % 10) + 1); }, 1000);
 
-        // محرك النبض المستمر (القلعة)
         setInterval(() => {
             if (counter > 255) counter = 1;
-            
-            // إذا كان الرقم هو "المحذوف"، نسكت ولا نرسل للسيرفر
-            if (counter === suppressedValue) {
-                console.log("Gap Created at:", counter);
-                suppressedValue = null; 
-            } else {
-                set(heartbeatRef, counter);
-            }
+            if (counter === suppressedValue) { suppressedValue = null; } 
+            else { set(heartbeatRef, counter); }
             counter++;
-        }, 200); // سرعة النبض
+        }, 200);
 
-        // دالة حذف النبضات بناءً على النص
         function triggerGap(text) {
-            let delay = 0;
-            text.split("").forEach(char => {
-                setTimeout(() => {
-                    suppressedValue = char.charCodeAt(0);
-                }, delay);
-                delay += 1200; // وقت كافٍ لانتظار دورة العداد
+            text.split("").forEach((char, idx) => {
+                setTimeout(() => { suppressedValue = char.charCodeAt(0); }, idx * 1200);
             });
         }
 
-        // --- 2. محرك الإرسال الهندسي (Chunks) ---
-        async function sendDataEng(data, type, mime = "") {
-            const CHUNK_SIZE = 2048;
-            const baseId = Date.now();
-            for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-                const chunk = data.slice(i, i + CHUNK_SIZE);
-                const obfuscated = Array.from(chunk).map(b => b ^ 0x0F); 
-                await push(pulseRef, {
-                    d: obfuscated, idx: i / CHUNK_SIZE, id: baseId,
-                    t: type, m: mime, ts: serverTimestamp()
+        // --- 3. محرك الإرسال (Pulse Stream) ---
+        async function sendPulseStream(rawData, fCode) {
+            const compressed = await compressData(rawData);
+            const CHUNK_SIZE = 64 * 1024;
+            const total = Math.ceil(compressed.length / CHUNK_SIZE);
+
+            for (let i = 0; i < total; i++) {
+                const chunk = compressed.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+                const pulsePath = `${fCode}/${Date.now()}_${i}`;
+                await set(ref(db, `temporal/stream/${pulsePath}`), {
+                    d: Array.from(chunk).map(b => b ^ 0x0F),
+                    sz: total
                 });
             }
         }
 
-        // --- 3. الأوامر التنفيذية للأزرار ---
+        // --- 4. تنفيذ الترددات ---
         document.getElementById("sendBtn").onclick = () => {
             const val = document.getElementById("userInput").value;
             if(!val) return;
-            
-            // تنفيذ الطريقتين معاً
-            sendDataEng(machineEncoder.encode(val), "text"); // إرسال صريح مشفر
-            triggerGap(val);                                // إرسال عبر الفجوة الزمنية
-            
+            triggerGap(val);
+            sendPulseStream(machineEncoder.encode(val), 1001);
             document.getElementById("userInput").value = "";
         };
 
         document.getElementById("fileBtn").onclick = () => {
             const input = document.createElement('input'); input.type = 'file';
             input.onchange = e => {
-                const file = e.target.files[0];
                 const reader = new FileReader();
-                reader.onload = (evt) => { sendDataEng(new Uint8Array(evt.target.result), "file", file.type); };
-                reader.readAsArrayBuffer(file);
+                reader.onload = (evt) => { sendPulseStream(new Uint8Array(evt.target.result), 465586); };
+                reader.readAsArrayBuffer(e.target.files[0]);
             };
             input.click();
         };
 
-        // --- 4. محرك الاستقبال المزدوج ---
-        
-        // أ- مراقب الفجوات (Gap Monitor)
-        let lastHValue = 0;
-        onValue(heartbeatRef, (snapshot) => {
-            const currentHValue = snapshot.val();
-            // اكتشاف القفزة (السكون المتعمد)
-            if (currentHValue === lastHValue + 2 || (currentHValue === 1 && lastHValue === 254)) {
-                const char = String.fromCharCode(lastHValue + 1);
-                console.log("Detected Gap Char:", char);
-                // تمييز رسائل الفجوة بلون مختلف في العرض
-                const display = document.getElementById("chat-display");
-                display.innerHTML += `<div style="color:#00ffff; font-size:12px;">[تنبيه معالج]: اكتشاف سكون رقمي للحرف (${char})</div>`;
-            }
-            lastHValue = currentHValue;
-        });
-
-        // ب- إعادة بناء الكتل (Reconstruction)
-        onValue(pulseRef, (snapshot) => {
+        // --- 5. محرك الاستقبال وإعادة التجميع ---
+        onValue(streamRef, async (snap) => {
             const display = document.getElementById("chat-display");
-            display.innerHTML = "";
-            if (!snapshot.exists()) return;
-            const pulses = Object.values(snapshot.val());
-            const groups = {};
-            pulses.forEach(p => {
-                if(!groups[p.id]) groups[p.id] = { type: p.t, mime: p.m, chunks: [] };
-                const original = p.d.map(b => b ^ 0x0F);
-                groups[p.id].chunks.push({ idx: p.idx, data: original });
-            });
-            Object.keys(groups).sort().forEach(id => {
-                const group = groups[id];
-                group.chunks.sort((a, b) => a.idx - b.idx);
-                let totalLength = group.chunks.reduce((acc, c) => acc + c.data.length, 0);
-                const finalArray = new Uint8Array(totalLength);
-                let offset = 0;
-                group.chunks.forEach(c => { finalArray.set(c.data, offset); offset += c.data.length; });
-                const container = document.createElement("div");
-                container.style.borderBottom = "1px solid #001100";
-                container.style.padding = "5px";
-                if (group.type === "text") {
-                    container.textContent = machineDecoder.decode(finalArray);
-                } else {
-                    const blob = new Blob([finalArray], { type: group.mime });
-                    const url = URL.createObjectURL(blob);
-                    if (group.mime.startsWith("image/")) {
-                        const img = document.createElement("img"); img.src = url; container.appendChild(img);
-                    } else {
-                        container.innerHTML = `<a href="${url}" download="file_${id}" style="color:#0f0;">📂 ملف مستعاد</a>`;
+            if (!snap.exists()) return;
+            const freqs = snap.val();
+
+            for (let fCode in freqs) {
+                const pulses = freqs[fCode];
+                const keys = Object.keys(pulses).sort();
+                const totalNeeded = pulses[keys[0]].sz;
+
+                if (keys.length === totalNeeded) {
+                    let chunks = [];
+                    keys.forEach(k => { chunks.push(new Uint8Array(pulses[k].d.map(b => b ^ 0x0F))); });
+                    
+                    let merged = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+                    let offset = 0;
+                    chunks.forEach(c => { merged.set(c, offset); offset += c.length; });
+
+                    const finalData = await decompressData(merged);
+                    const container = document.createElement("div");
+                    container.style.borderBottom = "1px solid #111";
+
+                    if (parseInt(fCode) === 1001) {
+                        container.textContent = machineDecoder.decode(finalData);
+                    } else if (parseInt(fCode) === 465586) {
+                        const url = URL.createObjectURL(new Blob([finalData]));
+                        container.innerHTML = `<img src="${url}">`;
                     }
+                    display.appendChild(container);
+                    display.scrollTop = display.scrollHeight;
                 }
-                display.appendChild(container);
-            });
-            display.scrollTop = display.scrollHeight;
+            }
         });
 
-        document.getElementById("clearBtn").onclick = () => { if(confirm("حذف كل النبضات؟")) { remove(pulseRef); remove(heartbeatRef); } };
+        let lastH = 0;
+        onValue(heartbeatRef, snap => {
+            let curr = snap.val();
+            if (curr === lastH + 2) {
+                document.getElementById("chat-display").innerHTML += `<div style="color:#0ff;">[GAP]: ${String.fromCharCode(lastH+1)}</div>`;
+            }
+            lastH = curr;
+        });
+
+        document.getElementById("clearBtn").onclick = () => { if(confirm("تصفير؟")) { remove(ref(db, "temporal")); } };
     </script>
 </body>
 </html>
