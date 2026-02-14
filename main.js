@@ -15,15 +15,34 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// المسارات
+// المسارات المطورة
 const syncRef = ref(db, "time/sync");
-const pulseRef = ref(db, "temporal/v2_pulses"); // للملفات والكتل
-const heartbeatRef = ref(db, "temporal/heartbeat"); // لنظام الحذف الزمني
+const structuredRef = ref(db, "temporal/v3_structured"); // المسار الجديد المنظم
+const heartbeatRef = ref(db, "temporal/heartbeat");
+
+// خريطة الرموز الرقمية (Direct Mapping)
+const TYPE_MAP = { "text": 1001, "image": 465586, "file": 9909 };
+let sessionId = Math.floor(Math.random() * 9000) + 1000; 
 
 const machineEncoder = new TextEncoder();
 const machineDecoder = new TextDecoder();
 
-// --- 2. المزامنة والعداد الدوري (القلعة) ---
+// --- 2. محرك الضغط الأقصى (Compression Logic) ---
+async function compressData(data) {
+    const stream = new Blob([data]).stream();
+    const compressedStream = stream.pipeThrough(new CompressionStream("gzip"));
+    const response = new Response(compressedStream);
+    return new Uint8Array(await response.arrayBuffer());
+}
+
+async function decompressData(data) {
+    const stream = new Blob([data]).stream();
+    const decompressedStream = stream.pipeThrough(new DecompressionStream("gzip"));
+    const response = new Response(decompressedStream);
+    return new Uint8Array(await response.arrayBuffer());
+}
+
+// --- 3. المزامنة والعداد الدوري (نظام الحذف) ---
 let currentTick = 0;
 let counter = 1;
 let suppressedValue = null; 
@@ -31,58 +50,58 @@ let suppressedValue = null;
 onValue(syncRef, snap => { 
     if(snap.exists()) currentTick = snap.val(); 
     document.getElementById("global-tick").textContent = currentTick; 
-    document.getElementById("status").textContent = "البوابة نشطة (نظام مزدوج) 🟢";
+    document.getElementById("status").textContent = "نظام النبض المزدوج نشط 🟢";
 });
 
-// محرك النبضات الدوري - يعمل في الخلفية باستمرار
 setInterval(() => {
     if (counter > 255) counter = 1;
-
-    // نظام الحذف الزمني: إذا كان الرقم هو الهدف، نسكُت
     if (counter === suppressedValue) {
-        console.log("تم إسقاط النبضة رقم: ", counter);
         suppressedValue = null; 
     } else {
         set(heartbeatRef, counter);
     }
-    
     counter++;
-}, 150); // سرعة النبض (تعديلها يؤثر على سرعة نظام الحذف)
+}, 150);
 
 setInterval(() => { set(syncRef, (currentTick % 10) + 1); }, 1000);
 
-// --- 3. محرك الإرسال الأول (نظام الحذف للنصوص السريعة) ---
+// --- 4. محرك الإرسال المتسلسل (الضغط + الترقيم) ---
+async function sendStructuredData(rawData, type) {
+    const compressed = await compressData(rawData);
+    const CHUNK_SIZE = 64 * 1024; // قطع كبيرة 64KB لتقليل عدد الملفات
+    const totalChunks = Math.ceil(compressed.length / CHUNK_SIZE);
+    const typeCode = TYPE_MAP[type] || 0;
+
+    for (let i = 0; i < totalChunks; i++) {
+        const chunk = compressed.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        const obfuscated = Array.from(chunk).map(b => b ^ 0x0F);
+        
+        // الترقيم الذي طلبته: SessionID_Index
+        const sequenceId = `${sessionId}_${i}`;
+        
+        await set(ref(db, `temporal/v3_structured/${sequenceId}`), {
+            d: obfuscated,
+            t: typeCode,
+            total: totalChunks,
+            ts: serverTimestamp()
+        });
+    }
+    sessionId++; 
+}
+
+// دالة الحذف للنصوص السريعة
 function sendBySuppression(text) {
-    let chars = text.split("");
-    let delay = 0;
-    chars.forEach((char) => {
-        setTimeout(() => {
-            suppressedValue = char.charCodeAt(0);
-        }, delay);
-        delay += 1000; // ننتظر دورة كاملة لكل حرف لضمان عدم التداخل
+    text.split("").forEach((char, index) => {
+        setTimeout(() => { suppressedValue = char.charCodeAt(0); }, index * 1200);
     });
 }
 
-// --- 4. محرك الإرسال الثاني (نظام الكتل للملفات والصور) ---
-async function sendDataEng(data, type, mime = "") {
-    const CHUNK_SIZE = 2048; 
-    const baseId = Date.now();
-    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-        const chunk = data.slice(i, i + CHUNK_SIZE);
-        const obfuscated = Array.from(chunk).map(b => b ^ 0x0F); 
-        await push(pulseRef, {
-            d: obfuscated, idx: i / CHUNK_SIZE, id: baseId,
-            t: type, m: mime, ts: serverTimestamp()
-        });
-    }
-}
-
-// أزرار الواجهة
+// --- 5. أزرار الواجهة ---
 document.getElementById("sendBtn").onclick = () => {
     const val = document.getElementById("userInput").value;
     if(!val) return;
-    // نرسل النصوص عبر نظام "الحذف الزمني" لإخفائها
-    sendBySuppression(val);
+    sendBySuppression(val); // نظام الفجوة
+    sendStructuredData(machineEncoder.encode(val), "text"); // نظام الكتل المتسلسل
     document.getElementById("userInput").value = "";
 };
 
@@ -90,67 +109,73 @@ document.getElementById("fileBtn").onclick = () => {
     const input = document.createElement('input'); 
     input.type = 'file';
     input.onchange = e => {
-        const file = e.target.files[0];
         const reader = new FileReader();
         reader.onload = (evt) => { 
-            sendDataEng(new Uint8Array(evt.target.result), "file", file.type); 
+            sendStructuredData(new Uint8Array(evt.target.result), "image"); 
         };
-        reader.readAsArrayBuffer(file);
+        reader.readAsArrayBuffer(e.target.files[0]);
     };
     input.click();
 };
 
-// --- 5. محرك الاستقبال المزدوج ---
+// --- 6. محرك الاستقبال وإعادة التجميع الذكي ---
+let receivedChunks = {};
 
-// أ. استقبال نظام الحذف (مراقب الفجوات)
+// أ. استقبال نظام الحذف
 let lastHValue = 0;
 onValue(heartbeatRef, (snapshot) => {
     const currentHValue = snapshot.val();
     if (currentHValue === lastHValue + 2 || (currentHValue === 1 && lastHValue === 254)) {
         const missingChar = String.fromCharCode(lastHValue + 1);
-        const display = document.getElementById("chat-display");
-        display.innerHTML += `<div style="color:#00ffff;">[فجوة زمنية]: ${missingChar}</div>`;
-        display.scrollTop = display.scrollHeight;
+        document.getElementById("chat-display").innerHTML += `<div style="color:#00ffff;">[فجوة]: ${missingChar}</div>`;
     }
     lastHValue = currentHValue;
 });
 
-// ب. استقبال نظام الكتل (إعادة بناء الملفات)
-onValue(pulseRef, (snapshot) => {
+// ب. استقبال الكتل المتسلسلة وفك الضغط
+onValue(structuredRef, async (snapshot) => {
     const display = document.getElementById("chat-display");
     if (!snapshot.exists()) return;
-    const pulses = Object.values(snapshot.val());
-    const groups = {};
-    pulses.forEach(p => {
-        if(!groups[p.id]) groups[p.id] = { type: p.t, mime: p.m, chunks: [] };
-        const original = p.d.map(b => b ^ 0x0F);
-        groups[p.id].chunks.push({ idx: p.idx, data: original });
-    });
-    Object.keys(groups).sort().forEach(id => {
-        const group = groups[id];
-        group.chunks.sort((a, b) => a.idx - b.idx);
-        let totalLength = group.chunks.reduce((acc, c) => acc + c.data.length, 0);
-        const finalArray = new Uint8Array(totalLength);
-        let offset = 0;
-        group.chunks.forEach(c => { finalArray.set(c.data, offset); offset += c.data.length; });
-        const container = document.createElement("div");
-        container.style.borderBottom = "1px dotted #111";
-        if (group.type === "text") {
-            container.textContent = machineDecoder.decode(finalArray);
-        } else {
-            const blob = new Blob([finalArray], { type: group.mime });
-            const url = URL.createObjectURL(blob);
-            if (group.mime.startsWith("image/")) {
-                const img = document.createElement("img"); img.src = url; container.appendChild(img);
-            } else {
-                container.innerHTML = `<a href="${url}" download="file_${id}" style="color:#0f0;">📂 ملف مستعاد</a>`;
-            }
+    
+    const data = snapshot.val();
+    Object.keys(data).forEach(key => {
+        const [sId, cIdx] = key.split("_");
+        if (!receivedChunks[sId]) {
+            receivedChunks[sId] = { chunks: [], total: data[key].total, type: data[key].t };
         }
-        display.appendChild(container);
+        const original = data[key].d.map(b => b ^ 0x0F);
+        receivedChunks[sId].chunks[parseInt(cIdx)] = original;
     });
-    display.scrollTop = display.scrollHeight;
+
+    for (let sId in receivedChunks) {
+        const session = receivedChunks[sId];
+        const currentCount = session.chunks.filter(n => n !== undefined).length;
+
+        if (currentCount === session.total) {
+            // تجميع القطع
+            let totalLength = session.chunks.reduce((acc, c) => acc + c.length, 0);
+            const combined = new Uint8Array(totalLength);
+            let offset = 0;
+            session.chunks.forEach(c => { combined.set(c, offset); offset += c.length; });
+
+            // فك الضغط والمعالجة
+            const finalData = await decompressData(combined);
+            const container = document.createElement("div");
+            container.style.borderBottom = "1px dotted #333";
+
+            if (session.type === 1001) {
+                container.textContent = machineDecoder.decode(finalData);
+            } else if (session.type === 465586) {
+                const url = URL.createObjectURL(new Blob([finalData]));
+                container.innerHTML = `<img src="${url}" style="max-width:200px; border:1px solid #0f0;">`;
+            }
+            display.appendChild(container);
+            delete receivedChunks[sId]; // مسح الذاكرة المؤقتة
+            display.scrollTop = display.scrollHeight;
+        }
+    }
 });
 
 document.getElementById("clearBtn").onclick = () => { 
-    if(confirm("تصفير كافة الأنظمة؟")) { remove(pulseRef); remove(heartbeatRef); }
+    if(confirm("تصفير الأنظمة؟")) { remove(structuredRef); remove(heartbeatRef); }
 };
