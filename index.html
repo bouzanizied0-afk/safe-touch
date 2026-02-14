@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>⏳ Temporal Chat مع عداد على الخادم</title>
+<title>⏳ Temporal Chat + Full Media</title>
 <style>
 body {
   background:#000;
@@ -14,6 +14,15 @@ body {
 #minute {
   font-size:64px;
   margin:20px;
+}
+#chat {
+  font-size:28px;
+  color:#ff0;
+  margin:20px auto;
+  width:80%;
+  max-height:400px;
+  overflow-y:auto;
+  text-align:left;
 }
 input[type=text] {
   width:50%;
@@ -28,13 +37,19 @@ button {
   color:#0f0;
   border:1px solid #0f0;
 }
+img, video {
+  max-width: 80%;
+  margin:5px 0;
+  display:block;
+}
 </style>
 </head>
 <body>
 
-<h2>⏳ Temporal Chat مع عداد على الخادم</h2>
+<h2>⏳ دردشة بوابة الزمن مع وسائط كاملة</h2>
 
 <div id="minute">1</div>
+<div id="chat"></div>
 
 <input id="messageInput" placeholder="اكتب رسالتك هنا">
 <button onclick="sendMessage()">إرسال نص</button>
@@ -42,15 +57,14 @@ button {
 <button id="clearBtn">🗑 حذف كل الرسائل والملفات</button>
 
 <script type="module">
-// ===== استيراد Firebase =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// ===== إعداد Firebase =====
+// 🔐 إعداد Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD4XkZaqv7_c-uiUFc2NvZEFyQUapirz-Y",
   authDomain: "setouchi-it.firebaseapp.com",
-  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app",
+  databaseURL: "https://setouchi-it-default-rtdb.europe-west1.firebasedatabase.app/",
   projectId: "setouchi-it",
   storageBucket: "setouchi-it.appspot.com",
   messagingSenderId: "456612217542",
@@ -58,50 +72,174 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const chatRef = ref(db, "temporal/chat");
+const filesRef = ref(db, "temporal/files");
 
-// ===== المسار المشترك للعداد على الخادم =====
-const counterRef = ref(db, "temporal/counter");
+// ===== IndexedDB للتخزين المحلي =====
+let dbIndexed;
+const request = indexedDB.open("TemporalChatDB",1);
+request.onupgradeneeded = e => {
+  dbIndexed = e.target.result;
+  if(!dbIndexed.objectStoreNames.contains("messages")){
+    dbIndexed.createObjectStore("messages",{keyPath:"nano"});
+  }
+  if(!dbIndexed.objectStoreNames.contains("files")){
+    dbIndexed.createObjectStore("files",{keyPath:"nano"});
+  }
+};
+request.onsuccess = e => {
+  dbIndexed = e.target.result;
+  displayMessages();
+};
 
-// ===== واجهة العداد =====
-const minuteDiv = document.getElementById("minute");
+// ===== العداد الدوري 1→10 =====
 let tick = 1;
+const minuteDiv = document.getElementById("minute");
+const queue = [];
+const fileQueue = [];
 
-// ===== تحديث العداد وإرساله للخادم =====
 setInterval(()=>{
   tick++;
   if(tick>10) tick=1;
   minuteDiv.textContent = tick;
 
-  // إرسال العداد للخادم
-  set(counterRef, tick);
-}, 1000);
+  // إرسال نصوص
+  if(queue.length>0){
+    const msg = queue.shift();
+    const nano = Date.now();
+    push(chatRef,{type:'text',text:msg,nano});
+    storeMessageLocal({type:'text',text:msg,nano});
+  }
 
-// ===== الاستماع للتغييرات من أي متصفح آخر =====
-onValue(counterRef, snap => {
-  if(!snap.exists()) return;
-  tick = snap.val();
-  minuteDiv.textContent = tick;
-});
+  // إرسال ملفات
+  if(fileQueue.length>0){
+    const item = fileQueue.shift();
+    const reader = new FileReader();
+    reader.onload = e=>{
+      push(filesRef,{
+        fileName:item.fileName,
+        type:item.type,
+        chunk:e.target.result,
+        nano:Date.now()
+      });
+      storeFileLocal({
+        fileName:item.fileName,
+        type:item.type,
+        chunk:e.target.result,
+        nano:Date.now()
+      });
+    };
+    reader.readAsArrayBuffer(item.chunk);
+  }
 
-// ===== خانة كتابة النصوص =====
+},600);
+
+// ===== إرسال نص =====
 window.sendMessage = ()=>{
   const input = document.getElementById("messageInput");
   const text = input.value.trim();
   if(!text) return;
-  alert("تم إرسال نص (محلي فقط): " + text);
+  queue.push(text);
   input.value="";
 };
 
-// ===== خانة إرسال ملفات وهمية =====
+// ===== إرسال ملف =====
 window.sendFile = ()=>{
-  alert("تم إرسال ملف (محلي فقط).");
+  const input = document.createElement("input");
+  input.type="file";
+  input.onchange = e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const chunkSize = 5*1024*1024; // تقسيم داخلي (5 ميغا)
+    let offset = 0;
+    while(offset<file.size){
+      const slice = file.slice(offset,offset+chunkSize);
+      fileQueue.push({chunk:slice,fileName:file.name,type:file.type});
+      offset+=chunkSize;
+    }
+  };
+  input.click();
 };
 
-// ===== مسح الرسائل الوهمية =====
+// ===== استقبال الرسائل من الخادم =====
+onValue(chatRef,snap=>{displayMessages();});
+onValue(filesRef,snap=>{displayMessages();});
+
+// ===== عرض الرسائل والملفات =====
+function displayMessages(){
+  const chat = document.getElementById("chat");
+  chat.innerHTML="";
+  if(!dbIndexed) return;
+
+  const tx=dbIndexed.transaction("messages","readonly");
+  const store=tx.objectStore("messages");
+  store.openCursor().onsuccess=e=>{
+    const cursor=e.target.result;
+    if(cursor){
+      const div=document.createElement("div");
+      div.textContent=cursor.value.text;
+      chat.appendChild(div);
+      cursor.continue();
+    }
+  };
+   
+  const ftx=dbIndexed.transaction("files","readonly");
+  const fstore=ftx.objectStore("files");
+  fstore.openCursor().onsuccess=e=>{
+    const cursor=e.target.result;
+    if(cursor){
+      const div=document.createElement("div");
+      if(cursor.value.type.startsWith("image/")){
+        const img=document.createElement("img");
+        img.src=URL.createObjectURL(new Blob([cursor.value.chunk]));
+        div.appendChild(img);
+      } else if(cursor.value.type.startsWith("video/")){
+        const vid=document.createElement("video");
+        vid.src=URL.createObjectURL(new Blob([cursor.value.chunk]));
+        vid.controls=true;
+        div.appendChild(vid);
+      } else {
+        div.textContent=`[ملف] ${cursor.value.fileName}`;
+      }
+      chat.appendChild(div);
+      cursor.continue();
+    }
+  };
+}
+
+// ===== التخزين المحلي =====
+function storeMessageLocal(msg){
+  if(!dbIndexed) return;
+  const tx=dbIndexed.transaction("messages","readwrite");
+  tx.objectStore("messages").put(msg);
+}
+
+function storeFileLocal(file){
+  if(!dbIndexed) return;
+  const tx=dbIndexed.transaction("files","readwrite");
+  tx.objectStore("files").put(file);
+}
+
+// ===== تحميل عند بدء التشغيل =====
+function loadLocalMessages(){
+  displayMessages();
+}
 document.getElementById("clearBtn").addEventListener("click", ()=> {
-  alert("تم مسح الرسائل الوهمية.");
+  if(!dbIndexed) return;
+  
+  // حذف الرسائل
+  const txMsg = dbIndexed.transaction("messages","readwrite");
+  txMsg.objectStore("messages").clear();
+
+  // حذف الملفات
+  const txFiles = dbIndexed.transaction("files","readwrite");
+  txFiles.objectStore("files").clear();
+
+  // مسح واجهة المستخدم فوراً
+  document.getElementById("chat").innerHTML = "";
 });
 </script>
 
 </body>
 </html>
+
